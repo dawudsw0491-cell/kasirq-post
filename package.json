@@ -7,9 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "6.19.0",
     "next": "15.5.9",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
@@ -20,6 +24,12 @@
     "@types/react-dom": "^19.1.0",
     "eslint": "^9.30.0",
     "eslint-config-next": "15.5.9",
+    "prisma": "6.19.0",
     "typescript": "^5.8.0"
+  },
+  "allowScripts": {
+    "prisma@6.19.0": true,
+    "@prisma/client@6.19.0": true,
+    "@prisma/engines@6.19.0": true
   }
 }
