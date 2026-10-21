@@ -421,24 +421,27 @@ export default function KasirPage() {
         </div>
       </div>
 
-      {/* MODAL BARCODE QRIS (STANDAR ASPI UNIVERSAL) */}
+      {/* MODAL BARCODE QRIS */}
       {showQrisModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-          <div className="tw-card" style={{ background: "#fff", color: "#000", padding: "24px", maxWidth: "340px", width: "100%", textAlign: "center" }}>
-            <h3 style={{ marginBottom: "8px" }}>QRIS Pembayaran</h3>
+          <div className="tw-card" style={{ background: "#fff", color: "#000", padding: "24px", maxWidth: "360px", width: "100%", textAlign: "center" }}>
+            <h3 style={{ marginBottom: "4px" }}>QRIS Pembayaran</h3>
             <p style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "16px" }}>{storeName}</p>
             
             <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "2px dashed #cbd5e1", marginBottom: "16px" }}>
+              {/* Menampilkan Gambar QRIS Resmi jika ada di public/qris-toko.png, atau Generator */}
               <img
-  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-    generateValidQRIS(storeName, totalAmount)
-  )}`}
-  alt="QRIS Barcode Universal"
-  style={{ width: "200px", height: "200px", margin: "0 auto", display: "block" }}
-/>
+                src="/qris-toko.png"
+                onError={(e) => {
+                  // Fallback jika file qris-toko.png belum ditaruh di folder public
+                  (e.target as HTMLImageElement).src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=00020101021126580016ID.CO.QRIS.WWW01189360091430000000000303UMI51440014ID.A20260000000020202000303UMI5204541153033605802ID5910${encodeURIComponent(storeName.substring(0, 10))}%206005SOLO6304`;
+                }}
+                alt="QRIS Merchant Toko"
+                style={{ width: "200px", height: "200px", margin: "0 auto", display: "block", objectFit: "contain" }}
+              />
             </div>
 
-            <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#4f46e5", marginBottom: "16px" }}>
+            <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#4f46e5", marginBottom: "16px" }}>
               Total: Rp {totalAmount.toLocaleString("id-ID")}
             </div>
 
@@ -453,7 +456,6 @@ export default function KasirPage() {
           </div>
         </div>
       )}
-
       {/* MODAL STRUK THERMAL PASCA TRANSAKSI */}
       {completedSale && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
