@@ -8,7 +8,10 @@ interface SaleItem {
   qty: number;
   price: number;
   subtotal: number;
-  product: { name: string; sku: string };
+  product: {
+    name: string;
+    sku: string;
+  };
 }
 
 interface Sale {
@@ -17,40 +20,41 @@ interface Sale {
   totalAmount: number;
   payAmount: number;
   changeAmount: number;
+  paymentMethod?: string;
   createdAt: string;
-  customer?: { name: string } | null;
   items: SaleItem[];
 }
 
 export default function PenjualanPage() {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [summary, setSummary] = useState({ totalTransactions: 0, totalRevenue: 0 });
   const [loading, setLoading] = useState(true);
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [storeName, setStoreName] = useState("TOKO WIWID");
 
-  const fetchSalesHistory = async () => {
+  const fetchSales = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/sales/history");
+      const res = await fetch("/api/sales");
       const json = await res.json();
-      if (json.success) {
-        setSales(json.data);
-        setSummary(json.summary);
-      }
+      if (json.success) setSales(json.data);
     } catch (err) {
-      console.error(err);
+      console.error("Gagal memuat laporan penjualan:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSalesHistory();
+    fetchSales();
+    const savedName = localStorage.getItem("tw_store_name");
+    if (savedName) setStoreName(savedName);
   }, []);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  // Ringkasan Statistik Laporan
+  const totalOmset = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalTransaksi = sales.length;
+  const qrisTotal = sales.filter((s) => s.paymentMethod === "QRIS").reduce((sum, s) => sum + s.totalAmount, 0);
+  const tunaiTotal = sales.filter((s) => !s.paymentMethod || s.paymentMethod === "Tunai").reduce((sum, s) => sum + s.totalAmount, 0);
+  const debitTotal = sales.filter((s) => s.paymentMethod === "Debit").reduce((sum, s) => sum + s.totalAmount, 0);
 
   return (
     <main className="tw-dashboard">
@@ -58,7 +62,7 @@ export default function PenjualanPage() {
         <Link href="/" className="tw-brand">
           <span className="tw-brand-logo">w.</span>
           <span className="tw-brand-copy">
-            <strong>TOKO WIWID</strong>
+            <strong>{storeName}</strong>
             <small>RETAIL MANAGEMENT</small>
           </span>
         </Link>
@@ -95,7 +99,7 @@ export default function PenjualanPage() {
           </Link>
         </nav>
 
-        <div className="tw-nav-label">TRANSAKSI</div>
+        <div className="tw-nav-label">TRANSAKSI &amp; SISTEM</div>
         <nav className="tw-nav">
           <Link href="/pembelian" className="tw-nav-link">
             <span className="tw-nav-icon">↓</span>
@@ -105,12 +109,16 @@ export default function PenjualanPage() {
             <span className="tw-nav-icon">↗</span>
             Penjualan
           </Link>
+          <Link href="/pengaturan" className="tw-nav-link">
+            <span className="tw-nav-icon">⚙</span>
+            Pengaturan
+          </Link>
         </nav>
 
         <div className="tw-sidebar-bottom">
           <div className="tw-status-dot" />
           <div>
-            <strong>Sistem Toko Wiwid</strong>
+            <strong>Sistem {storeName}</strong>
             <small>Workspace aktif</small>
           </div>
         </div>
@@ -119,7 +127,7 @@ export default function PenjualanPage() {
       <div className="tw-main">
         <header className="tw-topbar">
           <div className="tw-breadcrumb">
-            Workspace <span>/</span> <strong>Laporan Penjualan</strong>
+            Transaksi &amp; Sistem <span>/</span> <strong>Laporan Penjualan</strong>
           </div>
           <div className="tw-topbar-right">
             <span className="tw-live-badge">
@@ -131,163 +139,88 @@ export default function PenjualanPage() {
         </header>
 
         <div className="tw-content">
-          {/* Summary Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
-            <div className="tw-card" style={{ marginBottom: 0 }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)", fontWeight: 600 }}>TOTAL TRANSAKSI</span>
-              <h2 style={{ fontSize: "1.8rem", marginTop: "4px" }}>{summary.totalTransactions} Transaksi</h2>
+          {/* Grid Ringkasan KPI Laporan */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+            <div className="tw-card">
+              <span style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>Total Omset Penjualan</span>
+              <h2 style={{ fontSize: "1.5rem", color: "var(--tw-primary)", margin: "8px 0 0 0" }}>
+                Rp {totalOmset.toLocaleString("id-ID")}
+              </h2>
             </div>
-            <div className="tw-card" style={{ marginBottom: 0 }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)", fontWeight: 600 }}>TOTAL OMSET PENJUALAN</span>
-              <h2 style={{ fontSize: "1.8rem", marginTop: "4px", color: "var(--tw-primary)" }}>
-                Rp {summary.totalRevenue.toLocaleString("id-ID")}
+            <div className="tw-card">
+              <span style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>Total Transaksi</span>
+              <h2 style={{ fontSize: "1.5rem", margin: "8px 0 0 0" }}>{totalTransaksi} Nota</h2>
+            </div>
+            <div className="tw-card">
+              <span style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>Pemasukan Tunai</span>
+              <h2 style={{ fontSize: "1.5rem", color: "#16a34a", margin: "8px 0 0 0" }}>
+                Rp {tunaiTotal.toLocaleString("id-ID")}
+              </h2>
+            </div>
+            <div className="tw-card">
+              <span style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>Pemasukan QRIS &amp; EDC</span>
+              <h2 style={{ fontSize: "1.5rem", color: "#0284c7", margin: "8px 0 0 0" }}>
+                Rp {(qrisTotal + debitTotal).toLocaleString("id-ID")}
               </h2>
             </div>
           </div>
 
+          {/* Tabel Riwayat Penjualan */}
           <div className="tw-card">
-            <div className="tw-card-header">
-              <div>
-                <h2 className="tw-card-title">Riwayat Transaksi Penjualan</h2>
-                <p style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>
-                  Daftar seluruh transaksi kasir yang pernah dilakukan.
-                </p>
-              </div>
+            <div className="tw-card-header" style={{ marginBottom: "16px" }}>
+              <h2 className="tw-card-title">Riwayat Transaksi Penjualan</h2>
             </div>
 
-            <div className="tw-table-container">
-              <table className="tw-table">
-                <thead>
-                  <tr>
-                    <th>No. Faktur / Invoice</th>
-                    <th>Waktu Transaksi</th>
-                    <th>Pelanggan</th>
-                    <th>Total Belanja</th>
-                    <th>Jumlah Barang</th>
-                    <th style={{ textAlign: "center" }}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: "center", padding: "20px" }}>
-                        Memuat riwayat transaksi...
-                      </td>
+            {loading ? (
+              <p>Memuat laporan...</p>
+            ) : sales.length === 0 ? (
+              <p style={{ textAlign: "center", color: "var(--tw-muted)", padding: "20px" }}>Belum ada data transaksi penjualan.</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="tw-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid var(--tw-border)", textAlign: "left" }}>
+                      <th style={{ padding: "10px" }}>No. Invoice</th>
+                      <th style={{ padding: "10px" }}>Tanggal &amp; Waktu</th>
+                      <th style={{ padding: "10px" }}>Item Terjual</th>
+                      <th style={{ padding: "10px" }}>Metode</th>
+                      <th style={{ padding: "10px", textAlign: "right" }}>Total Transaksi</th>
                     </tr>
-                  ) : sales.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: "center", padding: "30px", color: "var(--tw-muted)" }}>
-                        Belum ada riwayat transaksi penjualan.
-                      </td>
-                    </tr>
-                  ) : (
-                    sales.map((sale) => (
-                      <tr key={sale.id}>
-                        <td><strong>{sale.invoiceNo}</strong></td>
-                        <td>{new Date(sale.createdAt).toLocaleString("id-ID")}</td>
-                        <td>{sale.customer?.name || "Umum"}</td>
-                        <td><strong>Rp {sale.totalAmount.toLocaleString("id-ID")}</strong></td>
-                        <td>
-                          <span className="tw-badge tw-badge-success">
-                            {sale.items.reduce((a, b) => a + b.qty, 0)} Item
+                  </thead>
+                  <tbody>
+                    {sales.map((sale) => (
+                      <tr key={sale.id} style={{ borderBottom: "1px solid var(--tw-border)" }}>
+                        <td style={{ padding: "10px", fontWeight: "bold" }}>{sale.invoiceNo}</td>
+                        <td style={{ padding: "10px", fontSize: "0.85rem" }}>
+                          {new Date(sale.createdAt).toLocaleString("id-ID")}
+                        </td>
+                        <td style={{ padding: "10px", fontSize: "0.85rem" }}>
+                          {sale.items.map((it) => `${it.product.name} (${it.qty})`).join(", ")}
+                        </td>
+                        <td style={{ padding: "10px" }}>
+                          <span
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              fontSize: "0.75rem",
+                              fontWeight: "bold",
+                              background: sale.paymentMethod === "QRIS" ? "#e0f2fe" : sale.paymentMethod === "Debit" ? "#fef3c7" : "#dcfce7",
+                              color: sale.paymentMethod === "QRIS" ? "#0369a1" : sale.paymentMethod === "Debit" ? "#b45309" : "#15803d",
+                            }}
+                          >
+                            {sale.paymentMethod || "Tunai"}
                           </span>
                         </td>
-                        <td style={{ textAlign: "center" }}>
-                          <button
-                            className="tw-btn tw-btn-primary"
-                            style={{ padding: "4px 10px", fontSize: "0.75rem" }}
-                            onClick={() => setSelectedSale(sale)}
-                          >
-                            Detail / Cetak Struk
-                          </button>
+                        <td style={{ padding: "10px", textAlign: "right", fontWeight: "bold" }}>
+                          Rp {sale.totalAmount.toLocaleString("id-ID")}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Modal Struk & Detail Transaksi */}
-          {selectedSale && (
-            <div
-              style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0,0,0,0.6)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-              }}
-            >
-              <div className="tw-card" style={{ background: "#fff", padding: "20px", maxWidth: "360px", width: "100%" }}>
-                <div id="thermal-receipt" className="receipt-container">
-                  <div className="receipt-header">
-                    <h2>TOKO WIWID</h2>
-                    <p>Jl. Utama Retail No. 1</p>
-                    <p>Telp/WA: 0812-3456-7890</p>
-                  </div>
-
-                  <p style={{ margin: "4px 0" }}>No: {selectedSale.invoiceNo}</p>
-                  <p style={{ margin: "4px 0" }}>Tgl: {new Date(selectedSale.createdAt).toLocaleString("id-ID")}</p>
-                  <p style={{ margin: "4px 0" }}>Pelanggan: {selectedSale.customer?.name || "Umum"}</p>
-                  <div className="receipt-divider" />
-
-                  <table className="receipt-table">
-                    <tbody>
-                      {selectedSale.items.map((item) => (
-                        <tr key={item.id}>
-                          <td colSpan={2}>
-                            {item.product?.name || "Produk"}<br />
-                            <small>{item.qty} x Rp {item.price.toLocaleString("id-ID")}</small>
-                          </td>
-                          <td className="num">Rp {item.subtotal.toLocaleString("id-ID")}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <div className="receipt-divider" />
-
-                  <div className="receipt-row">
-                    <span>TOTAL:</span>
-                    <strong>Rp {selectedSale.totalAmount.toLocaleString("id-ID")}</strong>
-                  </div>
-                  <div className="receipt-row">
-                    <span>BAYAR:</span>
-                    <span>Rp {selectedSale.payAmount.toLocaleString("id-ID")}</span>
-                  </div>
-                  <div className="receipt-row">
-                    <span>KEMBALI:</span>
-                    <span>Rp {selectedSale.changeAmount.toLocaleString("id-ID")}</span>
-                  </div>
-
-                  <div className="receipt-footer">
-                    <p>Terima Kasih Atas Kunjungan Anda!</p>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
-                  <button className="tw-btn tw-btn-primary" style={{ flex: 1 }} onClick={handlePrint}>
-                    🖨️ Cetak Struk
-                  </button>
-                  <button className="tw-btn tw-btn-secondary" onClick={() => setSelectedSale(null)}>
-                    Tutup
-                  </button>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
-
-          <footer className="tw-footer">
-            <span>© {new Date().getFullYear()} Toko Wiwid</span>
-            <span>Made for better business.</span>
-          </footer>
+            )}
+          </div>
         </div>
       </div>
     </main>
