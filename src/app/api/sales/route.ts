@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { invoiceNo, totalAmount, payAmount, changeAmount, paymentMethod, items } = body;
+    const { invoiceNo, totalAmount, payAmount, changeAmount, customerId, items } = body;
 
     const parsedTotal = Number(totalAmount) || 0;
     const parsedPay = Number(payAmount) || 0;
@@ -17,38 +17,46 @@ export async function POST(req: Request) {
       );
     }
 
-    const sale = await prisma.sale.create({
-      data: {
-        invoiceNo: invoiceNo || `INV-${Date.now()}`,
-        totalAmount: parsedTotal,
-        payAmount: parsedPay,
-        changeAmount: parsedChange,
-        paymentMethod: paymentMethod || "TUNAI",
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            quantity: Number(item.quantity) || 1,
-            price: Number(item.price) || 0,
-            costPrice: Number(item.costPrice) || 0,
-            subtotal: (Number(item.quantity) || 1) * (Number(item.price) || 0),
-          })),
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
-
-    for (const item of items) {
-      await prisma.product.update({
-        where: { id: item.productId },
+    const sale = await prisma.$transaction(async (tx) => {
+      const newSale = await tx.sale.create({
         data: {
-          stock: {
-            decrement: Number(item.quantity) || 1,
+          invoiceNo: invoiceNo || `INV-${Date.now()}`,
+          totalAmount: parsedTotal,
+          payAmount: parsedPay,
+          changeAmount: parsedChange,
+          customerId: customerId ? Number(customerId) : null,
+          items: {
+            create: items.map((item: any) => {
+              const itemQty = Number(item.quantity || item.qty) || 1;
+              const itemPrice = Number(item.price) || 0;
+              return {
+                productId: Number(item.productId),
+                qty: itemQty,
+                price: itemPrice,
+                subtotal: itemQty * itemPrice,
+              };
+            }),
           },
         },
+        include: {
+          items: true,
+        },
       });
-    }
+
+      for (const item of items) {
+        const itemQty = Number(item.quantity || item.qty) || 1;
+        await tx.product.update({
+          where: { id: Number(item.productId) },
+          data: {
+            stock: {
+              decrement: itemQty,
+            },
+          },
+        });
+      }
+
+      return newSale;
+    });
 
     return NextResponse.json({ success: true, data: sale });
   } catch (error: any) {

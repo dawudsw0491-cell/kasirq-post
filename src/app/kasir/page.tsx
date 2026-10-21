@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 
 interface Product {
-  id: number;
-  sku: string;
+  id: string;
+  code: string;
   name: string;
   price: number;
+  costPrice: number;
   stock: number;
 }
 
@@ -16,355 +16,253 @@ interface CartItem extends Product {
 }
 
 export default function KasirPage() {
-  const [storeName, setStoreName] = useState("TOKO WIWID");
   const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [payAmount, setPayAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState("TUNAI");
-  const [paidAmount, setPaidAmount] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [lastInvoice, setLastInvoice] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/products");
-      const json = await res.json();
-      if (json.success) setProducts(json.data || []);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setProducts(data);
+      } else if (data.success && Array.isArray(data.data)) {
+        setProducts(data.data);
+      }
     } catch (err) {
       console.error("Gagal mengambil data produk:", err);
     }
   };
 
-  useEffect(() => {
-    fetchProducts();
-    const savedName = localStorage.getItem("tw_store_name");
-    if (savedName) setStoreName(savedName);
-  }, []);
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.code.toLowerCase().includes(search.toLowerCase())
+  );
 
   const addToCart = (product: Product) => {
-    if (product.stock <= 0) return alert("Stok barang habis!");
-
-    const existing = cart.find((item) => item.id === product.id);
-    if (existing) {
-      if (existing.qty >= product.stock) return alert("Jumlah melebihi stok yang tersedia!");
-      setCart(
-        cart.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
-        )
-      );
-    } else {
-      setCart([...cart, { ...product, qty: 1 }]);
+    if (product.stock <= 0) {
+      alert("Stok barang habis!");
+      return;
     }
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        if (existing.qty >= product.stock) {
+          alert("Jumlah di keranjang melebihi stok yang tersedia!");
+          return prev;
+        }
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        );
+      }
+      return [...prev, { ...product, qty: 1 }];
+    });
   };
 
-  const updateQty = (id: number, delta: number) => {
-    setCart(
-      cart
+  const updateQty = (id: string, delta: number) => {
+    setCart((prev) =>
+      prev
         .map((item) => {
           if (item.id === id) {
             const newQty = item.qty + delta;
             if (newQty > item.stock) {
-              alert("Jumlah melebihi stok yang tersedia!");
+              alert("Jumlah melebihi stok!");
               return item;
             }
-            return { ...item, qty: newQty };
+            return newQty > 0 ? { ...item, qty: newQty } : null;
           }
           return item;
         })
-        .filter((item) => item.qty > 0)
+        .filter(Boolean) as CartItem[]
     );
   };
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const paidVal = parseFloat(paidAmount) || 0;
-  const changeAmount = paidVal - totalAmount;
+  const numericPayAmount = Number(payAmount) || 0;
+  const changeAmount = numericPayAmount > totalAmount ? numericPayAmount - totalAmount : 0;
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return alert("Keranjang belanja masih kosong!");
-    if (paymentMethod === "TUNAI" && paidVal < totalAmount) {
-      return alert("Jumlah pembayaran tunai kurang!");
+    if (cart.length === 0) {
+      alert("Keranjang belanja masih kosong!");
+      return;
     }
 
-    setSubmitting(true);
+    const payVal = Number(payAmount);
+    if (isNaN(payVal) || payVal < totalAmount) {
+      alert(`Pembayaran kurang! Nominal harus minimal Rp ${totalAmount.toLocaleString("id-ID")}`);
+      return;
+    }
 
-    const payload = {
-      totalAmount,
-      paidAmount: paymentMethod === "TUNAI" ? paidVal : totalAmount,
-      changeAmount: paymentMethod === "TUNAI" ? changeAmount : 0,
-      paymentMethod,
-      items: cart.map((i) => ({
-        productId: i.id,
-        qty: i.qty,
-        price: i.price,
-      })),
-    };
+    setIsSubmitting(true);
 
     try {
+      const payload = {
+        invoiceNo: `INV-${Date.now()}`,
+        totalAmount: totalAmount,
+        payAmount: payVal,
+        changeAmount: payVal - totalAmount,
+        paymentMethod: paymentMethod,
+        items: cart.map((item) => ({
+          productId: item.id,
+          quantity: item.qty,
+          price: item.price,
+          costPrice: item.costPrice || 0,
+        })),
+      };
+
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setLastInvoice({
-          ...json.data,
-          items: cart,
-          storeName,
-        });
-        setCart([]);
-        setPaidAmount("");
-        fetchProducts();
-      } else {
-        alert("Gagal memproses transaksi: " + json.error);
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Gagal memproses transaksi");
       }
+
+      alert("Transaksi Berhasil!");
+      setCart([]);
+      setPayAmount("");
+      fetchProducts();
     } catch (err: any) {
-      alert("Error: " + err.message);
+      alert("Gagal memproses transaksi:\n" + err.message);
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <main className="tw-dashboard">
-      <aside className="tw-sidebar">
-        <Link href="/" className="tw-brand">
-          <span className="tw-brand-logo">w.</span>
-          <span className="tw-brand-copy">
-            <strong>{storeName}</strong>
-            <small>RETAIL MANAGEMENT</small>
-          </span>
-        </Link>
+    <div className="p-6 bg-slate-900 text-slate-100 min-h-screen">
+      <h1 className="text-2xl font-bold mb-6 text-indigo-400">Kasir Toko Wiwid</h1>
 
-        <div className="tw-nav-label">WORKSPACE</div>
-        <nav className="tw-nav">
-          <Link href="/" className="tw-nav-link">
-            <span className="tw-nav-icon">⌂</span>
-            Dashboard
-          </Link>
-          <Link href="/kasir" className="tw-nav-link tw-nav-active">
-            <span className="tw-nav-icon">▣</span>
-            Kasir
-          </Link>
-        </nav>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <input
+            type="text"
+            placeholder="Cari barang / scan barcode..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-indigo-500"
+          />
 
-        <div className="tw-nav-label">MANAJEMEN TOKO</div>
-        <nav className="tw-nav">
-          <Link href="/barang" className="tw-nav-link">
-            <span className="tw-nav-icon">▦</span>
-            Barang
-          </Link>
-          <Link href="/kategori" className="tw-nav-link">
-            <span className="tw-nav-icon">◇</span>
-            Kategori
-          </Link>
-          <Link href="/pelanggan" className="tw-nav-link">
-            <span className="tw-nav-icon">♧</span>
-            Pelanggan
-          </Link>
-          <Link href="/supplier" className="tw-nav-link">
-            <span className="tw-nav-icon">⇄</span>
-            Supplier
-          </Link>
-        </nav>
-
-        <div className="tw-nav-label">TRANSAKSI &amp; SISTEM</div>
-        <nav className="tw-nav">
-          <Link href="/pembelian" className="tw-nav-link">
-            <span className="tw-nav-icon">↓</span>
-            Pembelian
-          </Link>
-          <Link href="/penjualan" className="tw-nav-link">
-            <span className="tw-nav-icon">↗</span>
-            Penjualan
-          </Link>
-          <Link href="/keuangan" className="tw-nav-link">
-            <span className="tw-nav-icon">💰</span>
-            Keuangan
-          </Link>
-          <Link href="/pengaturan" className="tw-nav-link">
-            <span className="tw-nav-icon">⚙</span>
-            Pengaturan
-          </Link>
-        </nav>
-
-        <div className="tw-sidebar-bottom">
-          <div className="tw-status-dot" />
-          <div>
-            <strong>Sistem {storeName}</strong>
-            <small>Workspace aktif</small>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-2">
+            {filteredProducts.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => addToCart(p)}
+                className="p-4 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition flex flex-col justify-between"
+              >
+                <div>
+                  <span className="text-xs text-slate-400 font-mono">{p.code}</span>
+                  <h3 className="font-semibold text-white mt-1 line-clamp-2">{p.name}</h3>
+                </div>
+                <div className="mt-3 flex justify-between items-center">
+                  <span className="text-indigo-400 font-bold">
+                    Rp {p.price.toLocaleString("id-ID")}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${p.stock > 0 ? "bg-slate-700 text-slate-300" : "bg-rose-900 text-rose-300"}`}>
+                    Stok: {p.stock}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </aside>
 
-      <div className="tw-main">
-        <header className="tw-topbar">
-          <div className="tw-breadcrumb">
-            Workspace <span>/</span> <strong>Kasir Point of Sale (POS)</strong>
-          </div>
-          <div className="tw-topbar-right">
-            <span className="tw-live-badge">
-              <span className="tw-status-dot" />
-              SISTEM AKTIF
-            </span>
-            <div className="tw-avatar">W</div>
-          </div>
-        </header>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-between h-fit space-y-6">
+          <div>
+            <h2 className="text-lg font-bold border-b border-slate-700 pb-3 mb-4">
+              Keranjang Penjualan
+            </h2>
 
-        <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px" }}>
-          {/* SISI KIRI: KATALOG BARANG */}
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {cart.length === 0 ? (
+              <p className="text-slate-400 text-center py-8">Keranjang kosong</p>
+            ) : (
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
+                    <div className="flex-1 mr-2">
+                      <p className="font-medium text-sm text-white line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-slate-400">Rp {item.price.toLocaleString("id-ID")}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => updateQty(item.id, -1)}
+                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm font-semibold w-6 text-center">{item.qty}</span>
+                      <button
+                        onClick={() => updateQty(item.id, 1)}
+                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 border-t border-slate-700 pt-4">
+            <div className="flex justify-between items-center text-lg font-bold">
+              <span>TOTAL:</span>
+              <span className="text-indigo-400 text-xl">
+                Rp {totalAmount.toLocaleString("id-ID")}
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Metode Bayar</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full p-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none"
+              >
+                <option value="TUNAI">Tunai / Cash</option>
+                <option value="QRIS">QRIS / Non-Tunai</option>
+                <option value="TRANSFER">Transfer Bank</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Nominal Uang (Rp)</label>
               <input
-                type="text"
-                placeholder="Cari barang / scan barcode..."
-                className="tw-input"
-                style={{ flex: 1 }}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                autoFocus
+                type="number"
+                placeholder="0"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                className="w-full p-2.5 rounded bg-slate-900 border border-slate-700 text-white text-lg font-bold focus:outline-none focus:border-indigo-500"
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px", maxHeight: "calc(100vh - 240px)", overflowY: "auto" }}>
-              {filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => addToCart(p)}
-                  style={{
-                    border: "1px solid var(--tw-border)",
-                    borderRadius: "8px",
-                    padding: "12px",
-                    cursor: p.stock > 0 ? "pointer" : "not-allowed",
-                    opacity: p.stock > 0 ? 1 : 0.5,
-                    background: "#fff",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  <small style={{ color: "var(--tw-muted)", fontSize: "0.75rem" }}>{p.sku}</small>
-                  <h4 style={{ margin: "4px 0", fontSize: "0.95rem" }}>{p.name}</h4>
-                  <div style={{ fontWeight: "bold", color: "var(--tw-primary)", fontSize: "0.9rem" }}>
-                    Rp {p.price.toLocaleString("id-ID")}
-                  </div>
-                  <small style={{ color: p.stock <= 5 ? "#dc2626" : "inherit" }}>
-                    Stok: {p.stock}
-                  </small>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SISI KANAN: KERANJANG & PEMBAYARAN */}
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div>
-              <h3 className="tw-card-title" style={{ marginBottom: "16px" }}>Keranjang Penjualan</h3>
-
-              {cart.length === 0 ? (
-                <p style={{ textAlign: "center", color: "var(--tw-muted)", padding: "40px 0" }}>
-                  Keranjang kosong. Pilih barang di sebelah kiri.
-                </p>
-              ) : (
-                <div style={{ maxHeight: "280px", overflowY: "auto", marginBottom: "16px" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <tbody>
-                      {cart.map((item) => (
-                        <tr key={item.id} style={{ borderBottom: "1px solid var(--tw-border)" }}>
-                          <td style={{ padding: "8px 0" }}>
-                            <strong>{item.name}</strong>
-                            <div style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>
-                              Rp {item.price.toLocaleString("id-ID")}
-                            </div>
-                          </td>
-                          <td style={{ padding: "8px 0", textAlign: "right" }}>
-                            <button
-                              className="tw-btn"
-                              style={{ padding: "2px 8px", marginRight: "4px" }}
-                              onClick={() => updateQty(item.id, -1)}
-                            >
-                              -
-                            </button>
-                            <span style={{ margin: "0 6px", fontWeight: "bold" }}>{item.qty}</span>
-                            <button
-                              className="tw-btn"
-                              style={{ padding: "2px 8px" }}
-                              onClick={() => updateQty(item.id, 1)}
-                            >
-                              +
-                            </button>
-                          </td>
-                          <td style={{ padding: "8px 0", textAlign: "right", fontWeight: "bold" }}>
-                            Rp {(item.price * item.qty).toLocaleString("id-ID")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="flex justify-between items-center text-sm font-semibold text-emerald-400">
+              <span>Kembalian:</span>
+              <span>Rp {changeAmount.toLocaleString("id-ID")}</span>
             </div>
 
-            <div style={{ paddingTop: "16px", borderTop: "2px solid var(--tw-border)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "1.2rem", fontWeight: "bold" }}>
-                <span>TOTAL:</span>
-                <span style={{ color: "var(--tw-primary)" }}>Rp {totalAmount.toLocaleString("id-ID")}</span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "4px" }}>Metode Bayar</label>
-                  <select
-                    className="tw-input"
-                    style={{ width: "100%" }}
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                  >
-                    <option value="TUNAI">Tunai / Cash</option>
-                    <option value="QRIS">QRIS / E-Wallet</option>
-                    <option value="DEBIT">Kartu Debit / EDC</option>
-                  </select>
-                </div>
-
-                {paymentMethod === "TUNAI" && (
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "4px" }}>Nominal Uang (Rp)</label>
-                    <input
-                      type="number"
-                      className="tw-input"
-                      style={{ width: "100%" }}
-                      placeholder="0"
-                      value={paidAmount}
-                      onChange={(e) => setPaidAmount(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {paymentMethod === "TUNAI" && paidVal > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "0.95rem", fontWeight: "bold", color: changeAmount >= 0 ? "#16a34a" : "#dc2626" }}>
-                  <span>Kembalian:</span>
-                  <span>Rp {changeAmount >= 0 ? changeAmount.toLocaleString("id-ID") : 0}</span>
-                </div>
-              )}
-
-              <button
-                className="tw-btn tw-btn-primary"
-                style={{ width: "100%", padding: "14px", fontSize: "1.05rem" }}
-                onClick={handleCheckout}
-                disabled={submitting || cart.length === 0}
-              >
-                {submitting ? "Memproses Transaksi..." : "Proses Bayar & Selesai ↗"}
-              </button>
-            </div>
+            <button
+              onClick={handleCheckout}
+              disabled={isSubmitting || cart.length === 0}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white font-bold rounded-lg transition"
+            >
+              {isSubmitting ? "Memproses Transaksi..." : "Bayar Sekarang"}
+            </button>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
