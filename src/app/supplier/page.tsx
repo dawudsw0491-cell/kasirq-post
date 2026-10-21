@@ -6,67 +6,63 @@ import Link from "next/link";
 interface Supplier {
   id: number;
   name: string;
-  phone?: string;
-  address?: string;
+  phone: string;
+  address: string;
 }
 
 export default function SupplierPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ name: "", phone: "", address: "" });
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [storeName, setStoreName] = useState("TOKO WIWID");
 
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/suppliers");
-      const json = await res.json();
-      if (json.success) setSuppliers(json.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Form State
+  const [showModal, setShowModal] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
 
   useEffect(() => {
-    fetchSuppliers();
+    const savedName = localStorage.getItem("tw_store_name");
+    if (savedName) setStoreName(savedName);
+
+    // Ambil data dari localStorage/simulasi lokal
+    const savedSuppliers = localStorage.getItem("tw_suppliers");
+    if (savedSuppliers) {
+      setSuppliers(JSON.parse(savedSuppliers));
+    } else {
+      const initialSuppliers = [
+        { id: 1, name: "PT. Indomarco Prismatama", phone: "081234567811", address: "Kawasan Industri Solo" },
+        { id: 2, name: "CV. Sembako Makmur Jaya", phone: "085712348999", address: "Jl. Pasar Gede No. 45" },
+      ];
+      setSuppliers(initialSuppliers);
+      localStorage.setItem("tw_suppliers", JSON.stringify(initialSuppliers));
+    }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setShowModal(false);
-        setFormData({ name: "", phone: "", address: "" });
-        fetchSuppliers();
-      } else {
-        alert("Gagal: " + json.error);
-      }
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    } finally {
-      setSubmitting(false);
-    }
+    const newSupplier = {
+      id: Date.now(),
+      name,
+      phone,
+      address,
+    };
+
+    const updated = [newSupplier, ...suppliers];
+    setSuppliers(updated);
+    localStorage.setItem("tw_suppliers", JSON.stringify(updated));
+
+    setName("");
+    setPhone("");
+    setAddress("");
+    setShowModal(false);
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Hapus supplier "${name}"?`)) return;
-    try {
-      const res = await fetch(`/api/suppliers?id=${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (res.ok && json.success) fetchSuppliers();
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    }
+  const handleDelete = (id: number) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus supplier ini?")) return;
+    const updated = suppliers.filter((s) => s.id !== id);
+    setSuppliers(updated);
+    localStorage.setItem("tw_suppliers", JSON.stringify(updated));
   };
 
   return (
@@ -75,7 +71,7 @@ export default function SupplierPage() {
         <Link href="/" className="tw-brand">
           <span className="tw-brand-logo">w.</span>
           <span className="tw-brand-copy">
-            <strong>TOKO WIWID</strong>
+            <strong>{storeName}</strong>
             <small>RETAIL MANAGEMENT</small>
           </span>
         </Link>
@@ -112,7 +108,7 @@ export default function SupplierPage() {
           </Link>
         </nav>
 
-        <div className="tw-nav-label">TRANSAKSI</div>
+        <div className="tw-nav-label">TRANSAKSI &amp; SISTEM</div>
         <nav className="tw-nav">
           <Link href="/pembelian" className="tw-nav-link">
             <span className="tw-nav-icon">↓</span>
@@ -122,12 +118,16 @@ export default function SupplierPage() {
             <span className="tw-nav-icon">↗</span>
             Penjualan
           </Link>
+          <Link href="/pengaturan" className="tw-nav-link">
+            <span className="tw-nav-icon">⚙</span>
+            Pengaturan
+          </Link>
         </nav>
 
         <div className="tw-sidebar-bottom">
           <div className="tw-status-dot" />
           <div>
-            <strong>Sistem Toko Wiwid</strong>
+            <strong>Sistem {storeName}</strong>
             <small>Workspace aktif</small>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function SupplierPage() {
       <div className="tw-main">
         <header className="tw-topbar">
           <div className="tw-breadcrumb">
-            Workspace <span>/</span> <strong>Supplier</strong>
+            Manajemen Toko <span>/</span> <strong>Data Supplier &amp; Pemasok</strong>
           </div>
           <div className="tw-topbar-right">
             <span className="tw-live-badge">
@@ -149,139 +149,85 @@ export default function SupplierPage() {
 
         <div className="tw-content">
           <div className="tw-card">
-            <div className="tw-card-header">
-              <div>
-                <h2 className="tw-card-title">Daftar Supplier / Distributor</h2>
-                <p style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>
-                  Kelola data penyuplai produk barang dagangan.
-                </p>
-              </div>
+            <div className="tw-card-header" style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 className="tw-card-title">Daftar Supplier / Pemasok</h2>
               <button className="tw-btn tw-btn-primary" onClick={() => setShowModal(true)}>
                 + Tambah Supplier
               </button>
             </div>
 
-            <div className="tw-table-container">
-              <table className="tw-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nama Supplier</th>
-                    <th>No. Telepon / Kontak</th>
-                    <th>Alamat / Perusahaan</th>
-                    <th style={{ textAlign: "center" }}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "20px" }}>
-                        Memuat data supplier...
-                      </td>
+            {suppliers.length === 0 ? (
+              <p style={{ textAlign: "center", color: "var(--tw-muted)", padding: "20px" }}>Belum ada data supplier yang tersimpan.</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="tw-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid var(--tw-border)", textAlign: "left" }}>
+                      <th style={{ padding: "10px" }}>Nama Supplier</th>
+                      <th style={{ padding: "10px" }}>No. Telepon / WA</th>
+                      <th style={{ padding: "10px" }}>Alamat</th>
+                      <th style={{ padding: "10px", textAlign: "center" }}>Aksi</th>
                     </tr>
-                  ) : suppliers.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "30px", color: "var(--tw-muted)" }}>
-                        Belum ada data supplier.
-                      </td>
-                    </tr>
-                  ) : (
-                    suppliers.map((s) => (
-                      <tr key={s.id}>
-                        <td>#{s.id}</td>
-                        <td><strong>{s.name}</strong></td>
-                        <td>{s.phone || "-"}</td>
-                        <td>{s.address || "-"}</td>
-                        <td style={{ textAlign: "center" }}>
+                  </thead>
+                  <tbody>
+                    {suppliers.map((s) => (
+                      <tr key={s.id} style={{ borderBottom: "1px solid var(--tw-border)" }}>
+                        <td style={{ padding: "10px", fontWeight: "bold" }}>{s.name}</td>
+                        <td style={{ padding: "10px" }}>{s.phone}</td>
+                        <td style={{ padding: "10px" }}>{s.address}</td>
+                        <td style={{ padding: "10px", textAlign: "center" }}>
                           <button
-                            className="tw-btn tw-btn-danger"
-                            style={{ padding: "4px 10px", fontSize: "0.75rem" }}
-                            onClick={() => handleDelete(s.id, s.name)}
+                            className="tw-btn"
+                            style={{ padding: "4px 8px", fontSize: "0.8rem", background: "#fee2e2", color: "#991b1b" }}
+                            onClick={() => handleDelete(s.id)}
                           >
                             Hapus
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Modal Tambah Supplier */}
-          {showModal && (
-            <div
-              style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: "rgba(0,0,0,0.5)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 999,
-              }}
-            >
-              <div className="tw-card" style={{ width: "400px", marginBottom: 0, background: "#fff" }}>
-                <div className="tw-card-header">
-                  <h3 className="tw-card-title">Tambah Supplier Baru</h3>
-                  <button type="button" onClick={() => setShowModal(false)} style={{ border: "none", background: "none", cursor: "pointer", fontSize: "1.2rem" }}>
-                    ✕
-                  </button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Nama Supplier *</label>
-                    <input
-                      type="text"
-                      required
-                      className="tw-input"
-                      style={{ width: "100%" }}
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ marginBottom: "12px" }}>
-                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>No. Telepon / Kontak</label>
-                    <input
-                      type="text"
-                      className="tw-input"
-                      style={{ width: "100%" }}
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Alamat / Detail Supplier</label>
-                    <textarea
-                      className="tw-input"
-                      style={{ width: "100%", height: "60px" }}
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                    <button type="button" className="tw-btn tw-btn-secondary" onClick={() => setShowModal(false)} disabled={submitting}>
-                      Batal
-                    </button>
-                    <button type="submit" className="tw-btn tw-btn-primary" disabled={submitting}>
-                      {submitting ? "Menyimpan..." : "Simpan Supplier"}
-                    </button>
-                  </div>
-                </form>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
-
-          <footer className="tw-footer">
-            <span>© {new Date().getFullYear()} Toko Wiwid</span>
-            <span>Made for better business.</span>
-          </footer>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* MODAL TAMBAH SUPPLIER */}
+      {showModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div className="tw-card" style={{ background: "#fff", padding: "24px", maxWidth: "420px", width: "100%" }}>
+            <h3 style={{ marginBottom: "16px" }}>Tambah Supplier Baru</h3>
+
+            <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Nama Supplier / PT</label>
+                <input type="text" className="tw-input" style={{ width: "100%" }} value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>No. HP / WA Sales</label>
+                <input type="text" className="tw-input" style={{ width: "100%" }} value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Alamat Lengkap</label>
+                <input type="text" className="tw-input" style={{ width: "100%" }} value={address} onChange={(e) => setAddress(e.target.value)} />
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <button type="submit" className="tw-btn tw-btn-primary" style={{ flex: 1 }}>
+                  Simpan Supplier ↗
+                </button>
+                <button type="button" className="tw-btn tw-btn-secondary" onClick={() => setShowModal(false)}>
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
