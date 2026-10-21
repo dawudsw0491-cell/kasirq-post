@@ -250,51 +250,63 @@ export default function BarangPage() {
                     <tr style={{ borderBottom: "2px solid var(--tw-border)", textAlign: "left" }}>
                       <th style={{ padding: "10px" }}>SKU</th>
                       <th style={{ padding: "10px" }}>Nama Barang</th>
+                      <th style={{ padding: "10px", textAlign: "right" }}>Harga Modal (HPP)</th>
                       <th style={{ padding: "10px", textAlign: "right" }}>Harga Jual</th>
+                      <th style={{ padding: "10px", textAlign: "right" }}>Margin Laba</th>
                       <th style={{ padding: "10px", textAlign: "right" }}>Stok</th>
                       <th style={{ padding: "10px", textAlign: "center" }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProducts.map((p) => (
-                      <tr key={p.id} style={{ borderBottom: "1px solid var(--tw-border)" }}>
-                        <td style={{ padding: "10px", fontWeight: "bold" }}>{p.sku}</td>
-                        <td style={{ padding: "10px" }}>{p.name}</td>
-                        <td style={{ padding: "10px", textAlign: "right", fontWeight: "bold", color: "var(--tw-primary)" }}>
-                          Rp {p.price.toLocaleString("id-ID")}
-                        </td>
-                        <td style={{ padding: "10px", textAlign: "right" }}>
-                          <span
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: "12px",
-                              fontSize: "0.8rem",
-                              fontWeight: "bold",
-                              background: p.stock <= 5 ? "#fee2e2" : "#dcfce7",
-                              color: p.stock <= 5 ? "#991b1b" : "#166534",
-                            }}
-                          >
-                            {p.stock} pcs
-                          </span>
-                        </td>
-                        <td style={{ padding: "10px", textAlign: "center" }}>
-                          <button
-                            className="tw-btn"
-                            style={{ padding: "4px 8px", marginRight: "6px", fontSize: "0.8rem" }}
-                            onClick={() => openEditModal(p)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="tw-btn"
-                            style={{ padding: "4px 8px", fontSize: "0.8rem", background: "#fee2e2", color: "#991b1b" }}
-                            onClick={() => handleDelete(p.id)}
-                          >
-                            Hapus
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredProducts.map((p) => {
+                      const cost = p.costPrice || 0;
+                      const margin = p.price - cost;
+                      return (
+                        <tr key={p.id} style={{ borderBottom: "1px solid var(--tw-border)" }}>
+                          <td style={{ padding: "10px", fontWeight: "bold" }}>{p.sku}</td>
+                          <td style={{ padding: "10px" }}>{p.name}</td>
+                          <td style={{ padding: "10px", textAlign: "right", color: "var(--tw-muted)" }}>
+                            Rp {cost.toLocaleString("id-ID")}
+                          </td>
+                          <td style={{ padding: "10px", textAlign: "right", fontWeight: "bold", color: "var(--tw-primary)" }}>
+                            Rp {p.price.toLocaleString("id-ID")}
+                          </td>
+                          <td style={{ padding: "10px", textAlign: "right", fontWeight: "bold", color: margin >= 0 ? "#16a34a" : "#dc2626" }}>
+                            +Rp {margin.toLocaleString("id-ID")}
+                          </td>
+                          <td style={{ padding: "10px", textAlign: "right" }}>
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "12px",
+                                fontSize: "0.8rem",
+                                fontWeight: "bold",
+                                background: p.stock <= 5 ? "#fee2e2" : "#dcfce7",
+                                color: p.stock <= 5 ? "#991b1b" : "#166534",
+                              }}
+                            >
+                              {p.stock} pcs
+                            </span>
+                          </td>
+                          <td style={{ padding: "10px", textAlign: "center" }}>
+                            <button
+                              className="tw-btn"
+                              style={{ padding: "4px 8px", marginRight: "6px", fontSize: "0.8rem" }}
+                              onClick={() => openEditModal(p)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="tw-btn"
+                              style={{ padding: "4px 8px", fontSize: "0.8rem", background: "#fee2e2", color: "#991b1b" }}
+                              onClick={() => handleDelete(p.id)}
+                            >
+                              Hapus
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -318,6 +330,11 @@ export default function BarangPage() {
               <div>
                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Nama Barang</label>
                 <input type="text" className="tw-input" style={{ width: "100%" }} value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Harga Modal / HPP (Rp)</label>
+                <input type="number" className="tw-input" style={{ width: "100%" }} placeholder="0" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
               </div>
 
               <div>
