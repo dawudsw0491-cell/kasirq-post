@@ -15,176 +15,106 @@ interface CartItem extends Product {
   qty: number;
 }
 
-// Helper untuk Menghitung Checksum CRC16 Standar QRIS (CCITT-FALSE / 0x1021)
-function calculateCRC16(str: string): string {
-  let crc = 0xffff;
-  for (let i = 0; i < str.length; i++) {
-    crc ^= str.charCodeAt(i) << 8;
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x8000) !== 0) {
-        crc = ((crc << 1) ^ 0x1021) & 0xffff;
-      } else {
-        crc = (crc << 1) & 0xffff;
-      }
-    }
-  }
-  const hex = (crc & 0xffff).toString(16).toUpperCase();
-  return hex.padStart(4, "0");
-}
-
-// Function pembuat String QRIS Statis Valid
-function generateValidQRIS(merchantName: string, amount: number): string {
-  const cleanName = merchantName.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 25) || "TOKO WIWID";
-  const formattedAmount = Math.round(amount).toString();
-
-  // Payload TLV QRIS Standar Indonesia (ASPI)
-  let raw = "00020101021126580016ID.CO.QRIS.WWW01189360091430000000000303UMI51440014ID.A20260000000020202000303UMI52045411530336054";
-  raw += String(formattedAmount.length).padStart(2, "0") + formattedAmount;
-  raw += "5802ID59" + String(cleanName.length).padStart(2, "0") + cleanName;
-  raw += "6004SOLO6304";
-
-  const crc = calculateCRC16(raw);
-  return raw + crc;
-}
-
 export default function KasirPage() {
-  // 1. DEKLARASI STATE UTAMA (HARUS DI BAGIAN PALING ATAS KOMPONEN)
   const [storeName, setStoreName] = useState("TOKO WIWID");
-  const [storeAddress, setStoreAddress] = useState("Jl. Utama Retail No. 1");
-  const [storePhone, setStorePhone] = useState("0812-3456-7890");
-  const [receiptFooter, setReceiptFooter] = useState("Terima Kasih Atas Kunjungan Anda!");
-  const [paperSize, setPaperSize] = useState("58mm");
-  const [taxRate, setTaxRate] = useState(0);
-  const [enableTax, setEnableTax] = useState(false);
-
-  // 2. STATE INTERAKSI KASIR & BARANG
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Tunai");
-  const [payAmount, setPayAmount] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState("TUNAI");
+  const [paidAmount, setPaidAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [completedSale, setCompletedSale] = useState<any>(null);
-  const [showQrisModal, setShowQrisModal] = useState(false);
+  const [lastInvoice, setLastInvoice] = useState<any>(null);
 
   const fetchProducts = async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/products");
       const json = await res.json();
-      if (json.success) setProducts(json.data);
+      if (json.success) setProducts(json.data || []);
     } catch (err) {
       console.error("Gagal mengambil data produk:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchProducts();
-
-    // Memuat Pengaturan dari LocalStorage
     const savedName = localStorage.getItem("tw_store_name");
-    const savedAddress = localStorage.getItem("tw_store_address");
-    const savedPhone = localStorage.getItem("tw_store_phone");
-    const savedFooter = localStorage.getItem("tw_receipt_footer");
-    const savedPaper = localStorage.getItem("tw_paper_size");
-    const savedEnableTax = localStorage.getItem("tw_enable_tax");
-    const savedTaxRate = localStorage.getItem("tw_tax_rate");
-    const savedTheme = localStorage.getItem("tw_theme_mode");
-
     if (savedName) setStoreName(savedName);
-    if (savedAddress) setStoreAddress(savedAddress);
-    if (savedPhone) setStorePhone(savedPhone);
-    if (savedFooter) setReceiptFooter(savedFooter);
-    if (savedPaper) setPaperSize(savedPaper);
-    if (savedEnableTax === "true") setEnableTax(true);
-    if (savedTaxRate) setTaxRate(parseFloat(savedTaxRate) || 0);
-
-    if (savedTheme === "dark") {
-      document.body.classList.add("dark-mode");
-      document.documentElement.classList.add("dark");
-    } else {
-      document.body.classList.remove("dark-mode");
-      document.documentElement.classList.remove("dark");
-    }
   }, []);
 
   const addToCart = (product: Product) => {
     if (product.stock <= 0) return alert("Stok barang habis!");
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        if (existing.qty + 1 > product.stock) {
-          alert("Jumlah melebihi stok tersedia.");
-          return prev;
-        }
-        return prev.map((item) => (item.id === product.id ? { ...item, qty: item.qty + 1 } : item));
-      }
-      return [...prev, { ...product, qty: 1 }];
-    });
+
+    const existing = cart.find((item) => item.id === product.id);
+    if (existing) {
+      if (existing.qty >= product.stock) return alert("Jumlah melebihi stok yang tersedia!");
+      setCart(
+        cart.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        )
+      );
+    } else {
+      setCart([...cart, { ...product, qty: 1 }]);
+    }
   };
 
   const updateQty = (id: number, delta: number) => {
-    setCart((prev) =>
-      prev
+    setCart(
+      cart
         .map((item) => {
           if (item.id === id) {
             const newQty = item.qty + delta;
             if (newQty > item.stock) {
-              alert("Jumlah melebihi stok tersedia.");
+              alert("Jumlah melebihi stok yang tersedia!");
               return item;
             }
-            return newQty > 0 ? { ...item, qty: newQty } : null;
+            return { ...item, qty: newQty };
           }
           return item;
         })
-        .filter(Boolean) as CartItem[]
+        .filter((item) => item.qty > 0)
     );
   };
 
-  const subtotalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const taxAmount = enableTax ? (subtotalAmount * taxRate) / 100 : 0;
-  const totalAmount = subtotalAmount + taxAmount;
-
-  // Kalkulasi Nilai Bayar & Kembalian
-  const effectivePayAmount = paymentMethod === "Tunai" ? (parseFloat(payAmount) || 0) : totalAmount;
-  const changeAmount = effectivePayAmount - totalAmount;
-
-  const handlePaymentMethodChange = (method: string) => {
-    setPaymentMethod(method);
-    if (method !== "Tunai") {
-      setPayAmount(totalAmount.toString());
-    } else {
-      setPayAmount("");
-    }
-  };
+  const totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const paidVal = parseFloat(paidAmount) || 0;
+  const changeAmount = paidVal - totalAmount;
 
   const handleCheckout = async () => {
     if (cart.length === 0) return alert("Keranjang belanja masih kosong!");
-    if (effectivePayAmount < totalAmount) return alert("Uang pembayaran kurang!");
+    if (paymentMethod === "TUNAI" && paidVal < totalAmount) {
+      return alert("Jumlah pembayaran tunai kurang!");
+    }
 
     setSubmitting(true);
+
+    const payload = {
+      totalAmount,
+      paidAmount: paymentMethod === "TUNAI" ? paidVal : totalAmount,
+      changeAmount: paymentMethod === "TUNAI" ? changeAmount : 0,
+      paymentMethod,
+      items: cart.map((i) => ({
+        productId: i.id,
+        qty: i.qty,
+        price: i.price,
+      })),
+    };
+
     try {
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart,
-          totalAmount,
-          payAmount: effectivePayAmount,
-          changeAmount,
-          paymentMethod,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
       if (res.ok && json.success) {
-        setCompletedSale(json.data);
+        setLastInvoice({
+          ...json.data,
+          items: cart,
+          storeName,
+        });
         setCart([]);
-        setPayAmount("");
-        setShowQrisModal(false);
+        setPaidAmount("");
         fetchProducts();
       } else {
         alert("Gagal memproses transaksi: " + json.error);
@@ -255,6 +185,10 @@ export default function KasirPage() {
             <span className="tw-nav-icon">↗</span>
             Penjualan
           </Link>
+          <Link href="/keuangan" className="tw-nav-link">
+            <span className="tw-nav-icon">💰</span>
+            Keuangan
+          </Link>
           <Link href="/pengaturan" className="tw-nav-link">
             <span className="tw-nav-icon">⚙</span>
             Pengaturan
@@ -273,252 +207,164 @@ export default function KasirPage() {
       <div className="tw-main">
         <header className="tw-topbar">
           <div className="tw-breadcrumb">
-            Workspace <span>/</span> <strong>Kasir (POS)</strong>
+            Workspace <span>/</span> <strong>Kasir Point of Sale (POS)</strong>
           </div>
           <div className="tw-topbar-right">
             <span className="tw-live-badge">
               <span className="tw-status-dot" />
-              KASIR ONLINE
+              SISTEM AKTIF
             </span>
             <div className="tw-avatar">W</div>
           </div>
         </header>
 
-        <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "20px" }}>
-          {/* Katalog Produk */}
-          <div className="tw-card">
-            <div className="tw-card-header">
-              <h2 className="tw-card-title">Katalog Barang</h2>
+        <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px" }}>
+          {/* SISI KIRI: KATALOG BARANG */}
+          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
               <input
                 type="text"
-                placeholder="Cari nama barang / SKU..."
+                placeholder="Cari barang / scan barcode..."
                 className="tw-input"
-                style={{ width: "220px" }}
+                style={{ flex: 1 }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                autoFocus
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
-              {loading ? (
-                <p>Memuat produk...</p>
-              ) : (
-                filteredProducts.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => addToCart(p)}
-                    style={{
-                      border: "1px solid var(--tw-border)",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      cursor: "pointer",
-                      background: "var(--tw-card-bg)",
-                    }}
-                  >
-                    <div style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>{p.sku}</div>
-                    <strong style={{ display: "block", fontSize: "0.95rem", margin: "4px 0" }}>{p.name}</strong>
-                    <div style={{ color: "var(--tw-primary)", fontWeight: "bold" }}>Rp {p.price.toLocaleString("id-ID")}</div>
-                    <small style={{ color: p.stock > 0 ? "green" : "red" }}>Stok: {p.stock}</small>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px", maxHeight: "calc(100vh - 240px)", overflowY: "auto" }}>
+              {filteredProducts.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => addToCart(p)}
+                  style={{
+                    border: "1px solid var(--tw-border)",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    cursor: p.stock > 0 ? "pointer" : "not-allowed",
+                    opacity: p.stock > 0 ? 1 : 0.5,
+                    background: "#fff",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <small style={{ color: "var(--tw-muted)", fontSize: "0.75rem" }}>{p.sku}</small>
+                  <h4 style={{ margin: "4px 0", fontSize: "0.95rem" }}>{p.name}</h4>
+                  <div style={{ fontWeight: "bold", color: "var(--tw-primary)", fontSize: "0.9rem" }}>
+                    Rp {p.price.toLocaleString("id-ID")}
                   </div>
-                ))
-              )}
+                  <small style={{ color: p.stock <= 5 ? "#dc2626" : "inherit" }}>
+                    Stok: {p.stock}
+                  </small>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Keranjang Transaksi Kasir */}
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column" }}>
-            <h3 className="tw-card-title" style={{ marginBottom: "15px" }}>Keranjang Belanja</h3>
+          {/* SISI KANAN: KERANJANG & PEMBAYARAN */}
+          <div className="tw-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <h3 className="tw-card-title" style={{ marginBottom: "16px" }}>Keranjang Penjualan</h3>
 
-            <div style={{ minHeight: "180px", maxHeight: "260px", overflowY: "auto", borderBottom: "1px solid var(--tw-border)", marginBottom: "15px" }}>
               {cart.length === 0 ? (
-                <p style={{ textAlign: "center", color: "var(--tw-muted)", marginTop: "40px" }}>Keranjang belanja kosong</p>
+                <p style={{ textAlign: "center", color: "var(--tw-muted)", padding: "40px 0" }}>
+                  Keranjang kosong. Pilih barang di sebelah kiri.
+                </p>
               ) : (
-                cart.map((item) => (
-                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <div>
-                      <strong>{item.name}</strong>
-                      <div style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>
-                        Rp {item.price.toLocaleString("id-ID")} x {item.qty}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <button className="tw-btn" style={{ padding: "2px 8px" }} onClick={() => updateQty(item.id, -1)}>-</button>
-                      <span>{item.qty}</span>
-                      <button className="tw-btn" style={{ padding: "2px 8px" }} onClick={() => updateQty(item.id, 1)}>+</button>
-                    </div>
-                  </div>
-                ))
+                <div style={{ maxHeight: "280px", overflowY: "auto", marginBottom: "16px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <tbody>
+                      {cart.map((item) => (
+                        <tr key={item.id} style={{ borderBottom: "1px solid var(--tw-border)" }}>
+                          <td style={{ padding: "8px 0" }}>
+                            <strong>{item.name}</strong>
+                            <div style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>
+                              Rp {item.price.toLocaleString("id-ID")}
+                            </div>
+                          </td>
+                          <td style={{ padding: "8px 0", textAlign: "right" }}>
+                            <button
+                              className="tw-btn"
+                              style={{ padding: "2px 8px", marginRight: "4px" }}
+                              onClick={() => updateQty(item.id, -1)}
+                            >
+                              -
+                            </button>
+                            <span style={{ margin: "0 6px", fontWeight: "bold" }}>{item.qty}</span>
+                            <button
+                              className="tw-btn"
+                              style={{ padding: "2px 8px" }}
+                              onClick={() => updateQty(item.id, 1)}
+                            >
+                              +
+                            </button>
+                          </td>
+                          <td style={{ padding: "8px 0", textAlign: "right", fontWeight: "bold" }}>
+                            Rp {(item.price * item.qty).toLocaleString("id-ID")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
-            {enableTax && (
-              <div style={{ fontSize: "0.85rem", display: "flex", justifyContent: "space-between", marginBottom: "6px", color: "var(--tw-muted)" }}>
-                <span>Pajak ({taxRate}%):</span>
-                <span>Rp {taxAmount.toLocaleString("id-ID")}</span>
-              </div>
-            )}
-
-            <div style={{ fontSize: "1.1rem", fontWeight: "bold", display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-              <span>Total:</span>
-              <span style={{ color: "var(--tw-primary)" }}>Rp {totalAmount.toLocaleString("id-ID")}</span>
-            </div>
-
-            {/* Pilihan Metode Pembayaran */}
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Metode Pembayaran</label>
-              <select
-                className="tw-input"
-                style={{ width: "100%" }}
-                value={paymentMethod}
-                onChange={(e) => handlePaymentMethodChange(e.target.value)}
-              >
-                <option value="Tunai">💵 Tunai (Cash)</option>
-                <option value="QRIS">📱 QRIS / Barcode Scan</option>
-                <option value="Debit">💳 Kartu Debit / EDC</option>
-              </select>
-            </div>
-
-            {/* Nominal Bayar */}
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Nominal Bayar (Rp)</label>
-              <input
-                type="number"
-                placeholder="0"
-                className="tw-input"
-                style={{ width: "100%" }}
-                disabled={paymentMethod !== "Tunai"}
-                value={paymentMethod === "Tunai" ? payAmount : totalAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
-              />
-            </div>
-
-            {paymentMethod === "Tunai" && parseFloat(payAmount) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", fontWeight: "bold", color: changeAmount >= 0 ? "green" : "red" }}>
-                <span>Kembalian:</span>
-                <span>Rp {changeAmount.toLocaleString("id-ID")}</span>
-              </div>
-            )}
-
-            {paymentMethod === "QRIS" && cart.length > 0 && (
-              <button
-                className="tw-btn"
-                style={{ width: "100%", padding: "10px", marginBottom: "10px", background: "#0284c7", color: "#fff" }}
-                onClick={() => setShowQrisModal(true)}
-              >
-                🔍 Tampilkan QRIS Barcode
-              </button>
-            )}
-
-            <button
-              className="tw-btn tw-btn-primary"
-              style={{ width: "100%", padding: "12px" }}
-              disabled={submitting || cart.length === 0}
-              onClick={handleCheckout}
-            >
-              {submitting ? "Memproses..." : "Selesaikan Transaksi ↗"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* MODAL BARCODE QRIS */}
-      {showQrisModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-          <div className="tw-card" style={{ background: "#fff", color: "#000", padding: "24px", maxWidth: "360px", width: "100%", textAlign: "center" }}>
-            <h3 style={{ marginBottom: "4px" }}>QRIS Pembayaran</h3>
-            <p style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "16px" }}>{storeName}</p>
-            
-            <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "2px dashed #cbd5e1", marginBottom: "16px" }}>
-              {/* Menampilkan Gambar QRIS Resmi jika ada di public/qris-toko.png, atau Generator */}
-              <img
-                src="/qris-toko.png"
-                onError={(e) => {
-                  // Fallback jika file qris-toko.png belum ditaruh di folder public
-                  (e.target as HTMLImageElement).src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=00020101021126580016ID.CO.QRIS.WWW01189360091430000000000303UMI51440014ID.A20260000000020202000303UMI5204541153033605802ID5910${encodeURIComponent(storeName.substring(0, 10))}%206005SOLO6304`;
-                }}
-                alt="QRIS Merchant Toko"
-                style={{ width: "200px", height: "200px", margin: "0 auto", display: "block", objectFit: "contain" }}
-              />
-            </div>
-
-            <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#4f46e5", marginBottom: "16px" }}>
-              Total: Rp {totalAmount.toLocaleString("id-ID")}
-            </div>
-
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button className="tw-btn tw-btn-primary" style={{ flex: 1 }} onClick={handleCheckout} disabled={submitting}>
-                {submitting ? "Memproses..." : "Konfirmasi Lunas ↗"}
-              </button>
-              <button className="tw-btn tw-btn-secondary" onClick={() => setShowQrisModal(false)}>
-                Batal
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* MODAL STRUK THERMAL PASCA TRANSAKSI */}
-      {completedSale && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-          <div className="tw-card" style={{ background: "#fff", color: "#000", padding: "20px", maxWidth: paperSize === "80mm" ? "380px" : "320px", width: "100%" }}>
-            <div id="thermal-receipt" className="receipt-container" style={{ width: paperSize === "80mm" ? "340px" : "280px" }}>
-              <div className="receipt-header">
-                <h2>{storeName}</h2>
-                <p>{storeAddress}</p>
-                <p>Telp/WA: {storePhone}</p>
-              </div>
-
-              <p style={{ margin: "4px 0" }}>No: {completedSale.invoiceNo}</p>
-              <p style={{ margin: "4px 0" }}>Tgl: {new Date(completedSale.createdAt).toLocaleString("id-ID")}</p>
-              <p style={{ margin: "4px 0", fontWeight: "bold" }}>Metode: {completedSale.paymentMethod || paymentMethod}</p>
-              <div className="receipt-divider" />
-
-              <table className="receipt-table">
-                <tbody>
-                  {completedSale.items.map((item: any) => (
-                    <tr key={item.id}>
-                      <td colSpan={2}>
-                        {item.product.name}<br />
-                        <small>{item.qty} x Rp {item.price.toLocaleString("id-ID")}</small>
-                      </td>
-                      <td className="num">Rp {item.subtotal.toLocaleString("id-ID")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="receipt-divider" />
-
-              <div className="receipt-row">
+            <div style={{ paddingTop: "16px", borderTop: "2px solid var(--tw-border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "1.2rem", fontWeight: "bold" }}>
                 <span>TOTAL:</span>
-                <strong>Rp {completedSale.totalAmount.toLocaleString("id-ID")}</strong>
+                <span style={{ color: "var(--tw-primary)" }}>Rp {totalAmount.toLocaleString("id-ID")}</span>
               </div>
-              <div className="receipt-row">
-                <span>BAYAR ({completedSale.paymentMethod || paymentMethod}):</span>
-                <span>Rp {completedSale.payAmount.toLocaleString("id-ID")}</span>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "4px" }}>Metode Bayar</label>
+                  <select
+                    className="tw-input"
+                    style={{ width: "100%" }}
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="TUNAI">Tunai / Cash</option>
+                    <option value="QRIS">QRIS / E-Wallet</option>
+                    <option value="DEBIT">Kartu Debit / EDC</option>
+                  </select>
+                </div>
+
+                {paymentMethod === "TUNAI" && (
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8rem", marginBottom: "4px" }}>Nominal Uang (Rp)</label>
+                    <input
+                      type="number"
+                      className="tw-input"
+                      style={{ width: "100%" }}
+                      placeholder="0"
+                      value={paidAmount}
+                      onChange={(e) => setPaidAmount(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
-              {completedSale.changeAmount > 0 && (
-                <div className="receipt-row">
-                  <span>KEMBALI:</span>
-                  <span>Rp {completedSale.changeAmount.toLocaleString("id-ID")}</span>
+
+              {paymentMethod === "TUNAI" && paidVal > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "0.95rem", fontWeight: "bold", color: changeAmount >= 0 ? "#16a34a" : "#dc2626" }}>
+                  <span>Kembalian:</span>
+                  <span>Rp {changeAmount >= 0 ? changeAmount.toLocaleString("id-ID") : 0}</span>
                 </div>
               )}
 
-              <div className="receipt-footer">
-                <p>{receiptFooter}</p>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
-              <button className="tw-btn tw-btn-primary" style={{ flex: 1 }} onClick={() => window.print()}>
-                🖨️ Cetak Struk ({paperSize})
-              </button>
-              <button className="tw-btn tw-btn-secondary" onClick={() => setCompletedSale(null)}>
-                Tutup
+              <button
+                className="tw-btn tw-btn-primary"
+                style={{ width: "100%", padding: "14px", fontSize: "1.05rem" }}
+                onClick={handleCheckout}
+                disabled={submitting || cart.length === 0}
+              >
+                {submitting ? "Memproses Transaksi..." : "Proses Bayar & Selesai ↗"}
               </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </main>
   );
 }
