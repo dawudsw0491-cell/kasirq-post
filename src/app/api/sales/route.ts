@@ -1,99 +1,49 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: Mengambil seluruh riwayat penjualan
-export async function GET() {
-  try {
-    const sales = await prisma.sale.findMany({
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json({ success: true, data: sales });
-  } catch (error: any) {
-    console.error("API Sales GET Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Gagal mengambil data penjualan." },
-      { status: 500 }
-    );
-  }
-}
-
-// POST: Membuat transaksi penjualan baru
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { items, totalAmount, payAmount, changeAmount, paymentMethod } = body;
+    const { invoiceNo, totalAmount, payAmount, changeAmount, paymentMethod, items } = body;
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Keranjang belanja kosong." },
-        { status: 400 }
-      );
-    }
-
-    const invoiceNo = `INV-${Date.now()}`;
-
-    const sale = await prisma.$transaction(async (tx) => {
-      // 1. Simpan Transaksi Penjualan Utama
-      const newSale = await tx.sale.create({
-        data: {
-          invoiceNo,
-          totalAmount: parseFloat(totalAmount) || 0,
-          payAmount: parseFloat(payAmount) || 0,
-          changeAmount: parseFloat(changeAmount) || 0,
-          items: {
-            create: items.map((item: any) => ({
-              productId: item.id,
-              qty: item.qty,
-              price: item.price,
-              subtotal: item.price * item.qty,
-            })),
-          },
+    const sale = await prisma.sale.create({
+      data: {
+        invoiceNo: invoiceNo || `INV-${Date.now()}`,
+        totalAmount: Number(totalAmount) || 0,
+        payAmount: Number(payAmount) || Number(totalAmount) || 0,
+        changeAmount: Number(changeAmount) || 0,
+        paymentMethod: paymentMethod || "TUNAI",
+        items: {
+          create: items.map((item: any) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+            costPrice: item.costPrice || 0,
+            subtotal: item.quantity * item.price,
+          })),
         },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    // Update stok barang otomatis
+    for (const item of items) {
+      await prisma.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: {
+            decrement: item.quantity,
           },
         },
       });
+    }
 
-      // 2. Kurangi Stok Produk Terjual
-      for (const item of items) {
-        await tx.product.update({
-          where: { id: item.id },
-          data: {
-            stock: {
-              decrement: item.qty,
-            },
-          },
-        });
-      }
-
-      return newSale;
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...sale,
-        paymentMethod: paymentMethod || "Tunai",
-      },
-    });
+    return NextResponse.json({ success: true, data: sale });
   } catch (error: any) {
-    console.error("API Sales POST Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Gagal memproses transaksi." },
+      { success: false, error: error.message },
       { status: 500 }
     );
   }
