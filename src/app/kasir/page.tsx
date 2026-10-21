@@ -23,6 +23,7 @@ export default function KasirPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [completedSale, setCompletedSale] = useState<any>(null);
+  const [paymentMethod, setPaymentMethod] = useState("Tunai");
 
   // Integrasi Variabel Pengaturan
   const [storeName, setStoreName] = useState("TOKO WIWID");
@@ -130,6 +131,7 @@ export default function KasirPage() {
           totalAmount,
           payAmount: numericPay,
           changeAmount,
+          paymentMethod,
         }),
       });
 
@@ -317,17 +319,18 @@ export default function KasirPage() {
             </div>
 
             <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Nominal Bayar (Rp)</label>
-              <input
-                type="number"
-                placeholder="0"
+              <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "4px" }}>Metode Pembayaran</label>
+              <select
                 className="tw-input"
                 style={{ width: "100%" }}
-                value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
-              />
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <option value="Tunai">💵 Tunai (Cash)</option>
+                <option value="QRIS">📱 QRIS / Transfer Bank</option>
+                <option value="Debit">💳 Kartu Debit / EDC</option>
+              </select>
             </div>
-
             {numericPay > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", fontWeight: "bold", color: changeAmount >= 0 ? "green" : "red" }}>
                 <span>Kembalian:</span>
