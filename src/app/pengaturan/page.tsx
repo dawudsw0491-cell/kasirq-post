@@ -5,43 +5,35 @@ import Link from "next/link";
 
 export default function PengaturanPage() {
   const [storeName, setStoreName] = useState("TOKO WIWID");
-  const [storeAddress, setStoreAddress] = useState("Jl. Utama Retail No. 1");
-  const [storePhone, setStorePhone] = useState("0812-3456-7890");
-  const [receiptFooter, setReceiptFooter] = useState("Terima Kasih Atas Kunjungan Anda!");
   const [paperSize, setPaperSize] = useState("58mm");
   const [enableTax, setEnableTax] = useState(false);
   const [taxRate, setTaxRate] = useState(0);
+  const [receiptFooter, setReceiptFooter] = useState("Terima Kasih Atas Kunjungan Anda!");
   const [savedMessage, setSavedMessage] = useState("");
 
   useEffect(() => {
     const savedName = localStorage.getItem("tw_store_name");
-    const savedAddress = localStorage.getItem("tw_store_address");
-    const savedPhone = localStorage.getItem("tw_store_phone");
-    const savedFooter = localStorage.getItem("tw_receipt_footer");
     const savedPaper = localStorage.getItem("tw_paper_size");
     const savedEnableTax = localStorage.getItem("tw_enable_tax");
     const savedTaxRate = localStorage.getItem("tw_tax_rate");
+    const savedFooter = localStorage.getItem("tw_receipt_footer");
 
     if (savedName) setStoreName(savedName);
-    if (savedAddress) setStoreAddress(savedAddress);
-    if (savedPhone) setStorePhone(savedPhone);
-    if (savedFooter) setReceiptFooter(savedFooter);
     if (savedPaper) setPaperSize(savedPaper);
     if (savedEnableTax === "true") setEnableTax(true);
     if (savedTaxRate) setTaxRate(parseFloat(savedTaxRate) || 0);
+    if (savedFooter) setReceiptFooter(savedFooter);
   }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem("tw_store_name", storeName);
-    localStorage.setItem("tw_store_address", storeAddress);
-    localStorage.setItem("tw_store_phone", storePhone);
-    localStorage.setItem("tw_receipt_footer", receiptFooter);
     localStorage.setItem("tw_paper_size", paperSize);
     localStorage.setItem("tw_enable_tax", enableTax ? "true" : "false");
     localStorage.setItem("tw_tax_rate", taxRate.toString());
+    localStorage.setItem("tw_receipt_footer", receiptFooter);
 
-    setSavedMessage("Pengaturan toko berhasil disimpan!");
+    setSavedMessage("Pengaturan berhasil disimpan!");
     setTimeout(() => setSavedMessage(""), 3000);
   };
 
@@ -127,9 +119,9 @@ export default function PengaturanPage() {
           </div>
         </header>
 
-        <div className="tw-content" style={{ maxWidth: "700px" }}>
+        <div className="tw-content" style={{ maxWidth: "600px" }}>
           <div className="tw-card">
-            <h2 className="tw-card-title" style={{ marginBottom: "20px" }}>Konfigurasi &amp; Identitas Toko</h2>
+            <h2 className="tw-card-title" style={{ marginBottom: "20px" }}>Pengaturan Toko &amp; Struk</h2>
 
             {savedMessage && (
               <div style={{ background: "#dcfce7", color: "#166534", padding: "10px 14px", borderRadius: "8px", marginBottom: "16px", fontWeight: "bold" }}>
@@ -138,6 +130,7 @@ export default function PengaturanPage() {
             )}
 
             <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* 1. Nama Toko */}
               <div>
                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Nama Toko</label>
                 <input
@@ -150,71 +143,50 @@ export default function PengaturanPage() {
                 />
               </div>
 
+              {/* 2. Ukuran Struk */}
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Alamat Toko</label>
-                <input
-                  type="text"
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Ukuran Kertas Struk</label>
+                <select
                   className="tw-input"
                   style={{ width: "100%" }}
-                  value={storeAddress}
-                  onChange={(e) => setStoreAddress(e.target.value)}
-                />
+                  value={paperSize}
+                  onChange={(e) => setPaperSize(e.target.value)}
+                >
+                  <option value="58mm">Thermal 58 mm</option>
+                  <option value="80mm">Thermal 80 mm</option>
+                </select>
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Nomor Telepon / WhatsApp</label>
-                <input
-                  type="text"
-                  className="tw-input"
-                  style={{ width: "100%" }}
-                  value={storePhone}
-                  onChange={(e) => setStorePhone(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Ukuran Kertas Struk</label>
-                  <select
-                    className="tw-input"
-                    style={{ width: "100%" }}
-                    value={paperSize}
-                    onChange={(e) => setPaperSize(e.target.value)}
-                  >
-                    <option value="58mm">Thermal 58 mm</option>
-                    <option value="80mm">Thermal 80 mm</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Aktifkan Pajak (PPN/PPH)</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px" }}>
-                    <input
-                      type="checkbox"
-                      checked={enableTax}
-                      onChange={(e) => setEnableTax(e.target.checked)}
-                      style={{ width: "18px", height: "18px" }}
-                    />
-                    <span>{enableTax ? "Aktif" : "Non-aktif"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {enableTax && (
-                <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Tarif Pajak (%)</label>
+              {/* 3. PPN / PPH */}
+              <div style={{ border: "1px solid var(--tw-border)", borderRadius: "8px", padding: "12px", background: "var(--tw-card-bg)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enableTax ? "12px" : "0" }}>
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600 }}>Aktifkan Pajak (PPN / PPH)</label>
                   <input
-                    type="number"
-                    className="tw-input"
-                    style={{ width: "100%" }}
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                    type="checkbox"
+                    checked={enableTax}
+                    onChange={(e) => setEnableTax(e.target.checked)}
+                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
                   />
                 </div>
-              )}
 
+                {enableTax && (
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Tarif Pajak (%)</label>
+                    <input
+                      type="number"
+                      className="tw-input"
+                      style={{ width: "100%" }}
+                      placeholder="Misal: 11"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Footer Struk */}
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Catatan Footer Struk</label>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, marginBottom: "6px" }}>Footer Struk (Pesan Penutup)</label>
                 <input
                   type="text"
                   className="tw-input"
