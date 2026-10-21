@@ -15,6 +15,38 @@ interface CartItem extends Product {
   qty: number;
 }
 
+// Helper untuk Menghitung Checksum CRC16 Standar QRIS (CCITT-FALSE / 0x1021)
+function calculateCRC16(str: string): string {
+  let crc = 0xffff;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  const hex = (crc & 0xffff).toString(16).toUpperCase();
+  return hex.padStart(4, "0");
+}
+
+// Function pembuat String QRIS Statis Valid
+function generateValidQRIS(merchantName: string, amount: number): string {
+  const cleanName = merchantName.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 25) || "TOKO WIWID";
+  const formattedAmount = Math.round(amount).toString();
+
+  // Payload TLV QRIS Standar Indonesia (ASPI)
+  let raw = "00020101021126580016ID.CO.QRIS.WWW01189360091430000000000303UMI51440014ID.A20260000000020202000303UMI52045411530336054";
+  raw += String(formattedAmount.length).padStart(2, "0") + formattedAmount;
+  raw += "5802ID59" + String(cleanName.length).padStart(2, "0") + cleanName;
+  raw += "6004SOLO6304";
+
+  const crc = calculateCRC16(raw);
+  return raw + crc;
+}
+
 export default function KasirPage() {
   // 1. DEKLARASI STATE UTAMA (HARUS DI BAGIAN PALING ATAS KOMPONEN)
   const [storeName, setStoreName] = useState("TOKO WIWID");
@@ -398,10 +430,12 @@ export default function KasirPage() {
             
             <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "2px dashed #cbd5e1", marginBottom: "16px" }}>
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020101021126640016ID.CO.QRIS.WWW01189360091430000000000303UMI51440014ID.A20260000000020202000303UMI5204541153033605802ID5910${encodeURIComponent(storeName.substring(0, 10))}%206005SOLO6304`}
-                alt="QRIS Barcode Universal"
-                style={{ width: "180px", height: "180px", margin: "0 auto", display: "block" }}
-              />
+  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    generateValidQRIS(storeName, totalAmount)
+  )}`}
+  alt="QRIS Barcode Universal"
+  style={{ width: "200px", height: "200px", margin: "0 auto", display: "block" }}
+/>
             </div>
 
             <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#4f46e5", marginBottom: "16px" }}>
