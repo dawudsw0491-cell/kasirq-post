@@ -1,81 +1,92 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+export const prisma = globalForPrisma.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+// GET: Ambil semua daftar barang
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { category: true },
+      include: {
+        category: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
-
-    return NextResponse.json(products);
-  } catch {
+    return NextResponse.json({ success: true, data: products });
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Gagal mengambil data produk." },
+      { success: false, error: error.message || "Gagal mengambil data" },
       { status: 500 }
     );
   }
 }
 
+// POST: Tambah barang baru
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const { name, sku, price, costPrice, stock } = body;
 
-    if (
-      typeof body.sku !== "string" ||
-      !body.sku.trim() ||
-      typeof body.name !== "string" ||
-      !body.name.trim() ||
-      body.purchasePrice == null ||
-      body.sellingPrice == null
-    ) {
+    if (!name || name.trim() === "") {
       return NextResponse.json(
-        { error: "SKU, nama, harga beli, dan harga jual wajib diisi." },
+        { success: false, error: "Nama barang tidak boleh kosong" },
         { status: 400 }
       );
     }
 
-    const purchasePrice = Number(body.purchasePrice);
-    const sellingPrice = Number(body.sellingPrice);
-    const stock = body.stock === undefined ? 0 : Number(body.stock);
-    const minStock = body.minStock === undefined ? 0 : Number(body.minStock);
-
-    if (
-      !Number.isFinite(purchasePrice) ||
-      !Number.isFinite(sellingPrice) ||
-      !Number.isInteger(stock) ||
-      !Number.isInteger(minStock) ||
-      purchasePrice < 0 ||
-      sellingPrice < 0 ||
-      stock < 0 ||
-      minStock < 0
-    ) {
+    if (price === undefined || price === "" || isNaN(Number(price))) {
       return NextResponse.json(
-        { error: "Harga dan stok harus berupa angka yang valid." },
+        { success: false, error: "Harga jual harus berupa angka valid" },
         { status: 400 }
       );
     }
 
-    const product = await prisma.product.create({
+    const finalSku = sku && sku.trim() !== "" ? sku.trim() : `SKU-${Date.now()}`;
+
+    const newProduct = await prisma.product.create({
       data: {
-        sku: body.sku.trim(),
-        name: body.name.trim(),
-        barcode: body.barcode || null,
-        description: body.description || null,
-        purchasePrice,
-        sellingPrice,
-        stock,
-        minStock,
-        categoryId: body.categoryId || null,
+        name: name.trim(),
+        sku: finalSku,
+        price: parseFloat(price),
+        costPrice: costPrice ? parseFloat(costPrice) : 0,
+        stock: stock ? parseInt(stock, 10) : 0,
       },
     });
 
-    return NextResponse.json(product, { status: 201 });
-  } catch (error) {
-    console.error("Gagal membuat produk:", error);
-
+    return NextResponse.json({ success: true, data: newProduct }, { status: 201 });
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Gagal membuat produk. Periksa SKU dan koneksi database." },
+      { success: false, error: error.message || "Gagal menyimpan ke database" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: Hapus barang berdasarkan ID
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "ID barang wajib disertakan" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.product.delete({
+      where: { id: Number(id) },
+    });
+
+    return NextResponse.json({ success: true, message: "Barang berhasil dihapus" });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || "Gagal menghapus barang" },
       { status: 500 }
     );
   }

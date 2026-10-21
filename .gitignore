@@ -2,12 +2,14 @@ node_modules/
 .next/
 out/
 build/
-coverage/
-.env
-.env.*
-!.env.example
-*.log
-.DS_Store
+dist/
 
-# TypeScript build cache
-tsconfig.tsbuildinfo
+# Local Environment & Database
+.env
+*.log
+prisma/*.db
+prisma/*.db-journal
+
+# OS Files
+.DS_Store
+Thumbs.db

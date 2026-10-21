@@ -1,11 +1,11 @@
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { StockMovementType } from "@prisma/client";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+const VALID_MOVEMENT_TYPES = ["IN", "OUT", "ADJUSTMENT"] as const;
 
 export async function GET(
   _request: Request,
@@ -52,7 +52,9 @@ export async function POST(
 
     if (
       typeof body.type !== "string" ||
-      !["IN", "OUT", "ADJUSTMENT"].includes(body.type)
+      !VALID_MOVEMENT_TYPES.includes(
+        body.type as (typeof VALID_MOVEMENT_TYPES)[number]
+      )
     ) {
       return NextResponse.json(
         { error: "Jenis pergerakan stok tidak valid." },
@@ -108,7 +110,7 @@ export async function POST(
       const movement = await tx.stockMovement.create({
         data: {
           productId: id,
-          type: body.type as StockMovementType,
+          type: body.type,
           quantity: delta,
           note:
             typeof body.note === "string"

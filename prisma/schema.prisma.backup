@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  DEBT
+}
+
+enum PurchaseStatus {
+  RECEIVED
+  CANCELLED
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  sku           String          @unique
+  barcode       String?         @unique
+  name          String
+  description   String?
+  purchasePrice Decimal         @db.Decimal(15, 2)
+  sellingPrice  Decimal         @db.Decimal(15, 2)
+  stock         Int             @default(0)
+  minStock      Int             @default(0)
+  isActive      Boolean         @default(true)
+  categoryId    String?
+  category      Category?       @relation(fields: [categoryId], references: [id])
+  stockMovements StockMovement[]
+  saleItems     SaleItem[]
+  purchaseItems PurchaseItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([name])
+  @@index([categoryId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  address   String?
+  sales     Sale[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Supplier {
+  id        String     @id @default(cuid())
+  name      String
+  phone     String?
+  address   String?
+  purchases Purchase[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([name])
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  productId String
+  product   Product           @relation(fields: [productId], references: [id])
+  type      StockMovementType
+  quantity  Int
+  note      String?
+  createdAt DateTime          @default(now())
+
+  @@index([productId, createdAt])
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  status        SaleStatus    @default(COMPLETED)
+  paymentMethod PaymentMethod
+  subtotal      Decimal       @db.Decimal(15, 2)
+  discount      Decimal       @default(0) @db.Decimal(15, 2)
+  total         Decimal       @db.Decimal(15, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(15, 2)
+  items         SaleItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([createdAt])
+  @@index([customerId])
+}
+
+model SaleItem {
+  id            String   @id @default(cuid())
+  saleId        String
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Int
+  unitPrice     Decimal  @db.Decimal(15, 2)
+  discount      Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal      Decimal  @db.Decimal(15, 2)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model Purchase {
+  id            String         @id @default(cuid())
+  invoiceNumber String         @unique
+  supplierId    String?
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+  status        PurchaseStatus @default(RECEIVED)
+  subtotal      Decimal        @db.Decimal(15, 2)
+  total         Decimal        @db.Decimal(15, 2)
+  items         PurchaseItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([createdAt])
+  @@index([supplierId])
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitCost    Decimal  @db.Decimal(15, 2)
+  subtotal    Decimal  @db.Decimal(15, 2)
+
+  @@index([purchaseId])
+  @@index([productId])
+}
