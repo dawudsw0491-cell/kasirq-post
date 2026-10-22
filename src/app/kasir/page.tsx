@@ -1,214 +1,284 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-interface Product {
-  id: string;
-  code: string;
-  name: string;
-  price: number;
-  costPrice: number;
-  stock: number;
-}
-
-interface CartItem extends Product {
-  qty: number;
-}
+import Link from "next/link";
 
 export default function KasirPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [storeName, setStoreName] = useState("KASIRQ STORE");
+  const [isOnline, setIsOnline] = useState(true);
+  const [products, setProducts] = useState<any[]>([]);
+  const [cart, setCart] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [payAmount, setPayAmount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState("TUNAI");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number | "">("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetchProducts();
+    const savedStore = localStorage.getItem("tw_store_name");
+    if (savedStore) setStoreName(savedStore);
+
+    const savedProducts = localStorage.getItem("tw_products");
+    if (savedProducts) {
+      try {
+        setProducts(JSON.parse(savedProducts));
+      } catch (e) {
+        setProducts([]);
+      }
+    }
+
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setProducts(data);
-      } else if (data.success && Array.isArray(data.data)) {
-        setProducts(data.data);
-      }
-    } catch (err) {
-      console.error("Gagal mengambil data produk:", err);
-    }
-  };
-
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.code.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: any) => {
     if (product.stock <= 0) {
-      alert("Stok barang habis!");
+      alert("Stok produk ini habis!");
       return;
     }
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        if (existing.qty >= product.stock) {
-          alert("Jumlah di keranjang melebihi stok yang tersedia!");
-          return prev;
-        }
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
-        );
+
+    const exist = cart.find((item) => item.id === product.id);
+    if (exist) {
+      if (exist.qty >= product.stock) {
+        alert("Jumlah melebihi stok yang tersedia!");
+        return;
       }
-      return [...prev, { ...product, qty: 1 }];
-    });
+      setCart(
+        cart.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        )
+      );
+    } else {
+      setCart([...cart, { ...product, qty: 1 }]);
+    }
   };
 
-  const updateQty = (id: string, delta: number) => {
-    setCart((prev) =>
-      prev
+  const updateQty = (id: number, delta: number) => {
+    setCart(
+      cart
         .map((item) => {
           if (item.id === id) {
             const newQty = item.qty + delta;
-            if (newQty > item.stock) {
-              alert("Jumlah melebihi stok!");
-              return item;
-            }
             return newQty > 0 ? { ...item, qty: newQty } : null;
           }
           return item;
         })
-        .filter(Boolean) as CartItem[]
+        .filter(Boolean)
     );
   };
 
-  const totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const numericPayAmount = Number(payAmount) || 0;
-  const changeAmount = numericPayAmount > totalAmount ? numericPayAmount - totalAmount : 0;
+  const total = cart.reduce((acc, item) => acc + item.sellPrice * item.qty, 0);
+  const change = Number(paymentAmount) >= total ? Number(paymentAmount) - total : 0;
 
-  const handleCheckout = async () => {
+  // Selesaikan Transaksi & Sinkronisasi Ke Laporan, Dashboard, & Keuangan
+  const handleCheckout = () => {
     if (cart.length === 0) {
       alert("Keranjang belanja masih kosong!");
       return;
     }
-
-    const payVal = Number(payAmount);
-    if (isNaN(payVal) || payVal < totalAmount) {
-      alert(`Pembayaran kurang! Nominal harus minimal Rp ${totalAmount.toLocaleString("id-ID")}`);
+    if (paymentAmount === "" || Number(paymentAmount) < total) {
+      alert("Uang pembayaran kurang dari total belanja!");
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const payload = {
-        invoiceNo: `INV-${Date.now()}`,
-        totalAmount: totalAmount,
-        payAmount: payVal,
-        changeAmount: payVal - totalAmount,
-        paymentMethod: paymentMethod,
-        items: cart.map((item) => ({
-          productId: item.id,
-          quantity: item.qty,
-          price: item.price,
-          costPrice: item.costPrice || 0,
-        })),
-      };
-
-      const res = await fetch("/api/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Gagal memproses transaksi");
+    // 1. Update Stok di master barang (tw_products)
+    const updatedProducts = products.map((p) => {
+      const cartItem = cart.find((c) => c.id === p.id);
+      if (cartItem) {
+        return { ...p, stock: Math.max(0, p.stock - cartItem.qty) };
       }
+      return p;
+    });
 
-      alert("Transaksi Berhasil!");
-      setCart([]);
-      setPayAmount("");
-      fetchProducts();
-    } catch (err: any) {
-      alert("Gagal memproses transaksi:\n" + err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    setProducts(updatedProducts);
+    localStorage.setItem("tw_products", JSON.stringify(updatedProducts));
+
+    const transactionRecord = {
+      id: Date.now(),
+      date: new Date().toLocaleDateString("id-ID"),
+      timestamp: new Date().toISOString(),
+      items: cart,
+      total,
+      pay: Number(paymentAmount),
+      change,
+    };
+
+    // 2. Simpan ke tw_sales_history (untuk Dashboard & Laporan Penjualan)
+    const savedSales = localStorage.getItem("tw_sales_history");
+    const salesData = savedSales ? JSON.parse(savedSales) : [];
+    salesData.unshift(transactionRecord);
+    localStorage.setItem("tw_sales_history", JSON.stringify(salesData));
+
+    // 3. Simpan juga ke tw_sales_reports (jika modul laporan menggunakan key terpisah)
+    const savedReports = localStorage.getItem("tw_sales_reports");
+    const reportsData = savedReports ? JSON.parse(savedReports) : [];
+    reportsData.unshift(transactionRecord);
+    localStorage.setItem("tw_sales_reports", JSON.stringify(reportsData));
+
+    // 4. Catat otomatis pemasukan kas ke modul keuangan (tw_financial_records)
+    const savedFin = localStorage.getItem("tw_financial_records");
+    let finData = savedFin ? JSON.parse(savedFin) : [];
+    finData.unshift({
+      id: Date.now(),
+      date: new Date().toLocaleDateString("id-ID"),
+      description: `Penjualan Kasir (${cart.length} item)`,
+      type: "IN",
+      amount: total,
+    });
+    localStorage.setItem("tw_financial_records", JSON.stringify(finData));
+
+    // Trigger update lintas halaman secara real-time
+    window.dispatchEvent(new Event("storage"));
+
+    // Reset Form
+    setCart([]);
+    setPaymentAmount("");
+    setMessage("Transaksi Berhasil & Laporan Penjualan Terupdate!");
+    setTimeout(() => setMessage(""), 4000);
   };
 
   return (
-    <div className="p-6 bg-slate-900 text-slate-100 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6 text-indigo-400">Kasir Toko Wiwid</h1>
+    <main className="tw-dashboard" style={{ animation: "fadeIn 0.3s ease-in-out" }}>
+      <aside className="tw-sidebar">
+        <Link href="/" className="tw-brand" style={{ transition: "all 0.2s ease" }}>
+          <div
+            style={{
+              width: "38px",
+              height: "38px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(2, 132, 199, 0.4)",
+              border: "1px solid rgba(56, 189, 248, 0.4)",
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4H20V16H4V4Z" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="rgba(255,255,255,0.15)" />
+              <path d="M8 8H16" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
+              <path d="M8 12H12" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" />
+              <path d="M8 20H16" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+              <path d="M12 16V20" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <span className="tw-brand-copy">
+            <strong>{storeName}</strong>
+            <small>RETAIL MANAGEMENT</small>
+          </span>
+        </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          <input
-            type="text"
-            placeholder="Cari barang / scan barcode..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-indigo-500"
+        <div className="tw-nav-label">WORKSPACE</div>
+        <nav className="tw-nav">
+          <Link href="/" className="tw-nav-link"><span className="tw-nav-icon">⌂</span>Dashboard</Link>
+          <Link href="/kasir" className="tw-nav-link tw-nav-active"><span className="tw-nav-icon">▣</span>Kasir (POS)</Link>
+        </nav>
+
+        <div className="tw-nav-label">MANAJEMEN TOKO</div>
+        <nav className="tw-nav">
+          <Link href="/barang" className="tw-nav-link"><span className="tw-nav-icon">▦</span>Barang</Link>
+          <Link href="/kategori" className="tw-nav-link"><span className="tw-nav-icon">◇</span>Kode Barang (SKU)</Link>
+          <Link href="/pelanggan" className="tw-nav-link"><span className="tw-nav-icon">♧</span>Pelanggan</Link>
+          <Link href="/supplier" className="tw-nav-link"><span className="tw-nav-icon">⇄</span>Supplier</Link>
+        </nav>
+
+        <div className="tw-nav-label">TRANSAKSI &amp; SISTEM</div>
+        <nav className="tw-nav">
+          <Link href="/pembelian" className="tw-nav-link"><span className="tw-nav-icon">↓</span>Pembelian</Link>
+          <Link href="/penjualan" className="tw-nav-link"><span className="tw-nav-icon">↗</span>Penjualan</Link>
+          <Link href="/keuangan" className="tw-nav-link"><span className="tw-nav-icon">💰</span>Keuangan</Link>
+          <Link href="/pengaturan" className="tw-nav-link"><span className="tw-nav-icon">⚙</span>Pengaturan</Link>
+        </nav>
+
+        <div className="tw-sidebar-bottom">
+          <div
+            className="tw-status-dot"
+            style={{
+              backgroundColor: isOnline ? "#10b981" : "#ef4444",
+              boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+            }}
           />
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-2">
-            {filteredProducts.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => addToCart(p)}
-                className="p-4 bg-slate-800 border border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition flex flex-col justify-between"
-              >
-                <div>
-                  <span className="text-xs text-slate-400 font-mono">{p.code}</span>
-                  <h3 className="font-semibold text-white mt-1 line-clamp-2">{p.name}</h3>
-                </div>
-                <div className="mt-3 flex justify-between items-center">
-                  <span className="text-indigo-400 font-bold">
-                    Rp {p.price.toLocaleString("id-ID")}
-                  </span>
-                  <span className={`text-xs px-2 py-1 rounded ${p.stock > 0 ? "bg-slate-700 text-slate-300" : "bg-rose-900 text-rose-300"}`}>
-                    Stok: {p.stock}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div>
+            <strong>Sistem {storeName}</strong>
+            <small>{isOnline ? "Online (Terhubung)" : "Offline (Terputus)"}</small>
           </div>
         </div>
+      </aside>
 
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-between h-fit space-y-6">
-          <div>
-            <h2 className="text-lg font-bold border-b border-slate-700 pb-3 mb-4">
-              Keranjang Penjualan
-            </h2>
+      <div className="tw-main">
+        <header className="tw-topbar">
+          <div className="tw-breadcrumb">Workspace <span>/</span> <strong>Kasir (POS) Transaksi</strong></div>
+          <div className="tw-topbar-right">
+            <span
+              className="tw-live-badge"
+              style={{
+                backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+                color: isOnline ? "#10b981" : "#ef4444",
+                borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+              }}
+            >
+              <span
+                className="tw-status-dot"
+                style={{
+                  backgroundColor: isOnline ? "#10b981" : "#ef4444",
+                  boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+                }}
+              />
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
+        </header>
 
-            {cart.length === 0 ? (
-              <p className="text-slate-400 text-center py-8">Keranjang kosong</p>
+        <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}>
+          
+          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 className="tw-card-title">Pilih Produk</h3>
+              <input
+                type="text"
+                placeholder="Cari produk..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ width: "220px", padding: "8px 12px", fontSize: "0.85rem" }}
+              />
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)", border: "1px dashed var(--tw-border)", borderRadius: "10px" }}>
+                Tidak ada produk ditemukan. Pastikan stok barang aktif sudah ditambahkan di menu <strong>Barang</strong>.
+              </div>
             ) : (
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                {cart.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg">
-                    <div className="flex-1 mr-2">
-                      <p className="font-medium text-sm text-white line-clamp-1">{item.name}</p>
-                      <p className="text-xs text-slate-400">Rp {item.price.toLocaleString("id-ID")}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => updateQty(item.id, -1)}
-                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold"
-                      >
-                        -
-                      </button>
-                      <span className="text-sm font-semibold w-6 text-center">{item.qty}</span>
-                      <button
-                        onClick={() => updateQty(item.id, 1)}
-                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white font-bold"
-                      >
-                        +
-                      </button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+                {filteredProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => addToCart(p)}
+                    style={{
+                      padding: "14px",
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid var(--tw-border)",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#0284c7")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--tw-border)")}
+                  >
+                    <strong style={{ display: "block", color: "#ffffff", fontSize: "0.9rem", marginBottom: "4px" }}>{p.name}</strong>
+                    <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)", display: "block" }}>SKU: {p.skuCode}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}>
+                      <span style={{ color: "#38bdf8", fontWeight: "600", fontSize: "0.9rem" }}>Rp {p.sellPrice.toLocaleString("id-ID")}</span>
+                      <small style={{ color: p.stock > 0 ? "#10b981" : "#ef4444" }}>Stok: {p.stock}</small>
                     </div>
                   </div>
                 ))}
@@ -216,53 +286,71 @@ export default function KasirPage() {
             )}
           </div>
 
-          <div className="space-y-4 border-t border-slate-700 pt-4">
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>TOTAL:</span>
-              <span className="text-indigo-400 text-xl">
-                Rp {totalAmount.toLocaleString("id-ID")}
-              </span>
+          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 className="tw-card-title">Keranjang Belanja</h3>
+
+            {message && (
+              <div style={{ padding: "10px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem" }}>
+                ✓ {message}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto" }}>
+              {cart.length === 0 ? (
+                <span style={{ color: "var(--tw-muted)", fontSize: "0.85rem", textAlign: "center", padding: "20px 0" }}>Keranjang kosong</span>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px", background: "rgba(255,255,255,0.02)", borderRadius: "6px" }}>
+                    <div>
+                      <strong style={{ fontSize: "0.85rem", color: "#ffffff", display: "block" }}>{item.name}</strong>
+                      <small style={{ color: "var(--tw-muted)" }}>Rp {item.sellPrice.toLocaleString("id-ID")}</small>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <button onClick={() => updateQty(item.id, -1)} style={{ padding: "2px 8px", borderRadius: "4px" }}>-</button>
+                      <span style={{ fontSize: "0.85rem" }}>{item.qty}</span>
+                      <button onClick={() => updateQty(item.id, 1)} style={{ padding: "2px 8px", borderRadius: "4px" }}>+</button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
+            <hr style={{ borderColor: "var(--tw-border)" }} />
+
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Metode Bayar</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full p-2.5 rounded bg-slate-900 border border-slate-700 text-white focus:outline-none"
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span>Total Belanja:</span>
+                <strong style={{ fontSize: "1.2rem", color: "#38bdf8" }}>Rp {total.toLocaleString("id-ID")}</strong>
+              </div>
+
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Uang Pembayaran (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                  style={{ width: "100%" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+                <span>Kembalian:</span>
+                <strong style={{ color: "#10b981" }}>Rp {change.toLocaleString("id-ID")}</strong>
+              </div>
+
+              <button
+                onClick={handleCheckout}
+                className="tw-btn tw-btn-primary"
+                style={{ width: "100%", padding: "12px", fontWeight: "bold" }}
               >
-                <option value="TUNAI">Tunai / Cash</option>
-                <option value="QRIS">QRIS / Non-Tunai</option>
-                <option value="TRANSFER">Transfer Bank</option>
-              </select>
+                Bayar &amp; Simpan Laporan
+              </button>
             </div>
-
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Nominal Uang (Rp)</label>
-              <input
-                type="number"
-                placeholder="0"
-                value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
-                className="w-full p-2.5 rounded bg-slate-900 border border-slate-700 text-white text-lg font-bold focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="flex justify-between items-center text-sm font-semibold text-emerald-400">
-              <span>Kembalian:</span>
-              <span>Rp {changeAmount.toLocaleString("id-ID")}</span>
-            </div>
-
-            <button
-              onClick={handleCheckout}
-              disabled={isSubmitting || cart.length === 0}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white font-bold rounded-lg transition"
-            >
-              {isSubmitting ? "Memproses Transaksi..." : "Bayar Sekarang"}
-            </button>
           </div>
+
         </div>
       </div>
-    </div>
+    </main>
   );
 }

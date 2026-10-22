@@ -1,6 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export async function GET() {
+  try {
+    const sales = await prisma.sale.findMany({
+      include: {
+        items: {
+          include: {
+            product: true, // Pastikan relasi product disertakan agar tidak undefined
+          },
+        },
+        customer: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    return NextResponse.json({ success: true, data: sales });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
