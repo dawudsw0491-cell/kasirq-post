@@ -87,7 +87,6 @@ export default function RootLayout({
                   </span>
                 </Link>
 
-                {/* Tombol Tutup Navbar (X) di dalam Sidebar */}
                 <button
                   onClick={() => setIsSidebarCollapsed(true)}
                   title="Tutup Menu"
@@ -142,7 +141,7 @@ export default function RootLayout({
             </aside>
           </div>
 
-          {/* TOMBOL PANGGIL HAMBURGER MODEREN SAAT NAVBAR TERSEMBUNYI */}
+          {/* TOMBOL PANGGIL HAMBURGER SAAT NAVBAR TERSEMBUNYI */}
           {isSidebarCollapsed && (
             <button
               onClick={() => setIsSidebarCollapsed(false)}
@@ -171,7 +170,7 @@ export default function RootLayout({
             </button>
           )}
 
-          {/* AREA KONTEN UTAMA HALAMAN */}
+          {/* KONTEN UTAMA HALAMAN (BERGESER DINAMIS & TIDAK TERTUTUP NAVBAR) */}
           <div
             style={{
               flex: 1,

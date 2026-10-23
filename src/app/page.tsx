@@ -12,11 +12,9 @@ export default function DashboardPage() {
   const [dailyChartData, setDailyChartData] = useState<{ date: string; label: string; total: number; count: number }[]>([]);
   const [isOnline, setIsOnline] = useState(true);
 
-  // Parameter acuan stok menipis (Low Stock Threshold)
   const LOW_STOCK_THRESHOLD = 5;
 
   useEffect(() => {
-    // 1. OLAH DATA TRANSAKSI PENJUALAN & GRAFIK REAL-TIME 7 HARI TERAKHIR
     const savedSales = localStorage.getItem("tw_sales_history") || localStorage.getItem("sales");
     let salesData: any[] = [];
     if (savedSales) {
@@ -27,7 +25,6 @@ export default function DashboardPage() {
       }
     }
 
-    // Hitung Ringkasan Hari Ini
     const todayStr = new Date().toLocaleDateString("id-ID");
     const todayData = salesData.filter((s) => {
       const sDate = s.date ? new Date(s.date).toLocaleDateString("id-ID") : "";
@@ -37,9 +34,8 @@ export default function DashboardPage() {
     const revenueToday = todayData.reduce((acc, curr) => acc + (curr.total || curr.amount || 0), 0);
     setTodaySales(revenueToday);
     setTodayTransactions(todayData.length);
-    setNetProfit(revenueToday * 0.2); // Estimasi margin profit 20%
+    setNetProfit(revenueToday * 0.2);
 
-    // Buat Struktur Data Grafik 7 Hari Terakhir secara Real-time
     const chartDays = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -47,7 +43,6 @@ export default function DashboardPage() {
       const dateKey = d.toLocaleDateString("id-ID");
       const dayLabel = d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" });
 
-      // Aggregate Penjualan per Tanggal
       const daySalesArr = salesData.filter((s) => {
         const sDate = s.date ? new Date(s.date).toLocaleDateString("id-ID") : "";
         return sDate === dateKey || s.date?.includes(dateKey);
@@ -63,7 +58,6 @@ export default function DashboardPage() {
     }
     setDailyChartData(chartDays);
 
-    // 2. OLAH DATA STOK MENIPIS BERDASARKAN PARAMETER (threshold <= 5)
     const savedProducts = localStorage.getItem("tw_products");
     if (savedProducts) {
       try {
@@ -80,7 +74,6 @@ export default function DashboardPage() {
       }
     }
 
-    // 3. KONEKSI STATUS REAL-TIME
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -93,14 +86,13 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Hitung batas tertinggi nominal omset untuk skala grafik bar
   const maxChartVal = Math.max(...dailyChartData.map((d) => d.total), 100000);
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          Workspace <span>/</span> <strong>Dashboard Utama</strong>
+          <strong>Dashboard Utama</strong>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
@@ -131,7 +123,6 @@ export default function DashboardPage() {
 
       <div className="tw-content" style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "20px" }}>
         
-        {/* NOTICE WARNING STOK MENIPIS */}
         {lowStockProducts.length > 0 && (
           <div
             style={{
@@ -162,7 +153,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 4 KARTU RINGKASAN METRIK UTAMA */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           
           <div className="tw-card" style={{ padding: "20px" }}>
@@ -213,10 +203,8 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* SECTION GRAFIK REAL-TIME & WIDGET DETAIL STOK MENIPIS */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
           
-          {/* GRAFIK BAR REAL-TIME */}
           <div className="tw-card" style={{ padding: "24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <div>
@@ -262,7 +250,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* WIDGET STOK MENIPIS */}
           <div className="tw-card" style={{ padding: "24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div>
