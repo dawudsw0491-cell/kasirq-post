@@ -219,23 +219,28 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ========================================================
-   MEDIA QUERIES: PRESISI MOBILE RESPONSIVE (MAX-WIDTH: 768PX)
-   ======================================================== */
+    MEDIA QUERIES: PRESISI MOBILE RESPONSIVE (MAX-WIDTH: 768PX)
+    ======================================================== */
 @media (max-width: 768px) {
   .tw-dashboard {
     flex-direction: column;
   }
 
-  /* Sidebar Mobile Berubah Menjadi Header & Menu Scrollable */
+  /* Sidebar Mobile Dirapikan Menjadi Header Kompak & Scrollable Tanpa Paksaan */
   .tw-sidebar {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--tw-border);
-    padding: 12px 16px;
+    padding: 10px 14px;
+    gap: 0;
   }
 
   .tw-brand {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+  }
+
+  .tw-brand-copy strong {
+    font-size: 0.85rem;
   }
 
   .tw-nav-label {
@@ -246,13 +251,20 @@ input:focus, select:focus, textarea:focus {
     flex-direction: row;
     overflow-x: auto;
     white-space: nowrap;
-    padding-bottom: 6px;
-    gap: 8px;
+    padding-bottom: 4px;
+    gap: 6px;
+    scrollbar-width: none; /* Hilangkan scrollbar di Firefox */
+  }
+
+  .tw-nav::-webkit-scrollbar {
+    display: none; /* Hilangkan scrollbar di Chrome/Safari agar bersih */
   }
 
   .tw-nav-link {
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    border-radius: 6px;
+    flex-shrink: 0;
   }
 
   .tw-sidebar-bottom {
@@ -260,28 +272,46 @@ input:focus, select:focus, textarea:focus {
   }
 
   .tw-topbar {
-    padding: 0 16px;
-    height: 54px;
+    padding: 0 14px;
+    height: 48px;
   }
 
   .tw-breadcrumb {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+  }
+
+  .tw-live-badge {
+    padding: 2px 8px;
+    font-size: 0.65rem;
   }
 
   .tw-content {
-    padding: 16px;
+    padding: 14px;
   }
 
-  /* PAKSA SEMUA GRID MENJADI 1 KOLOM VERTIKAL DI MOBILE */
+  /* PAKSA SEMUA GRID MENJADI 1 KOLOM VERTIKAL DI MOBILE AGAR FIT RATIO */
   div[style*="gridTemplateColumns"],
   div[style*="grid-template-columns"] {
     grid-template-columns: 1fr !important;
   }
 
-  /* Penyesuaian Modal pada Ponsel */
+  /* PENYESUAIAN CARD DI MOBILE SUPAYA TIDAK PADAT */
+  .tw-card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  /* Penyesuaian Modal pada Ponsel agar Presisi & Tidak Terpotong */
+  div[style*="position: fixed"] {
+    padding: 10px !important;
+    align-items: center !important;
+  }
+
   div[style*="position: fixed"] > div {
-    width: 92% !important;
+    width: 100% !important;
     max-width: 100% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
     padding: 16px !important;
   }
 }
