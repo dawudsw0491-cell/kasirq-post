@@ -1,38 +1,50 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
+// GET: Ambil semua riwayat penjualan dari Supabase
 export async function GET() {
   try {
-    const sales = await prisma.sale.findMany({
-      include: {
-        items: {
-          include: {
-            product: true, // Pastikan relasi product disertakan agar tidak undefined
-          },
-        },
-        customer: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-    return NextResponse.json({ success: true, data: sales });
+    const { data: sales, error } = await supabase
+      .from("sales_history")
+      .select("*")
+      .order("date", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Mapping agar sesuai dengan format yang biasa dipakai frontend
+    const formattedSales = (sales || []).map((sale) => ({
+      id: sale.id,
+      invoiceNo: sale.id,
+      totalAmount: sale.total,
+      payAmount: sale.pay,
+      changeAmount: sale.change,
+      customerName: sale.customer_name,
+      paymentMethod: sale.payment_method,
+      createdAt: sale.date,
+      items: typeof sale.items === "string" ? JSON.parse(sale.items) : sale.items,
+    }));
+
+    return NextResponse.json({ success: true, data: formattedSales });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error.message || "Gagal mengambil data penjualan" },
       { status: 500 }
     );
   }
 }
 
+// POST: Simpan transaksi kasir baru dan kurangi stok produk di Supabase
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { invoiceNo, totalAmount, payAmount, changeAmount, customerId, items } = body;
+    const { invoiceNo, totalAmount, payAmount, changeAmount, customerName, paymentMethod, items } = body;
 
     const parsedTotal = Number(totalAmount) || 0;
     const parsedPay = Number(payAmount) || 0;
     const parsedChange = Number(changeAmount) || 0;
+    const trxId = invoiceNo || `INV-${Date.now()}`;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -41,48 +53,65 @@ export async function POST(req: Request) {
       );
     }
 
-    const sale = await prisma.$transaction(async (tx) => {
-      const newSale = await tx.sale.create({
-        data: {
-          invoiceNo: invoiceNo || `INV-${Date.now()}`,
-          totalAmount: parsedTotal,
-          payAmount: parsedPay,
-          changeAmount: parsedChange,
-          customerId: customerId ? Number(customerId) : null,
-          items: {
-            create: items.map((item: any) => {
-              const itemQty = Number(item.quantity || item.qty) || 1;
-              const itemPrice = Number(item.price) || 0;
-              return {
-                productId: Number(item.productId),
-                qty: itemQty,
-                price: itemPrice,
-                subtotal: itemQty * itemPrice,
-              };
-            }),
-          },
-        },
-        include: {
-          items: true,
-        },
-      });
+    // 1. Simpan ke tabel sales_history
+    const { error: saleError } = await supabase.from("sales_history").insert([
+      {
+        id: trxId,
+        items: items,
+        total: parsedTotal,
+        payment_method: paymentMethod || "Tunai",
+        customer_name: customerName || "Umum",
+        pay: parsedPay,
+        change: parsedChange,
+      },
+    ]);
 
-      for (const item of items) {
-        const itemQty = Number(item.quantity || item.qty) || 1;
-        await tx.product.update({
-          where: { id: Number(item.productId) },
-          data: {
-            stock: {
-              decrement: itemQty,
-            },
-          },
-        });
+    if (saleError) {
+      throw saleError;
+    }
+
+    // 2. Jika metode pembayaran adalah Piutang, catat ke tabel piutang
+    if (paymentMethod === "Piutang") {
+      await supabase.from("piutang").insert([
+        {
+          id: `PTG-${Date.now()}`,
+          trx_id: trxId,
+          customer_name: customerName || "Umum",
+          amount: parsedTotal,
+          paid_amount: 0,
+          remaining_amount: parsedTotal,
+          status: "Belum Lunas",
+        },
+      ]);
+    }
+
+    // 3. Kurangi stok produk satu per satu berdasarkan item yang dibeli
+    for (const item of items) {
+      const itemQty = Number(item.quantity || item.qty) || 1;
+      const productId = item.productId || item.id;
+
+      if (productId) {
+        // Ambil stok saat ini terlebih dahulu
+        const { data: currentProd } = await supabase
+          .from("products")
+          .select("stock")
+          .eq("id", productId)
+          .single();
+
+        if (currentProd) {
+          const newStock = Math.max(0, (currentProd.stock || 0) - itemQty);
+          await supabase
+            .from("products")
+            .update({ stock: newStock })
+            .eq("id", productId);
+        }
       }
+    }
 
-      return newSale;
+    return NextResponse.json({ 
+      success: true, 
+      data: { invoiceNo: trxId, totalAmount: parsedTotal } 
     });
-
-    return NextResponse.json({ success: true, data: sale });
   } catch (error: any) {
     console.error("API Sales Error:", error);
     return NextResponse.json(

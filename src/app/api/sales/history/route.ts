@@ -1,24 +1,39 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+import { supabase } from "@/lib/supabase";
 
 export async function GET() {
   try {
-    const sales = await prisma.sale.findMany({
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+    const { data: salesHistory, error } = await supabase
+      .from("sales_history")
+      .select("*")
+      .order("date", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Mapping data agar sesuai dengan struktur format frontend
+    const sales = (salesHistory || []).map((sale) => {
+      const itemsList = typeof sale.items === "string" ? JSON.parse(sale.items) : (sale.items || []);
+      const totalAmt = Number(sale.total) || 0;
+
+      return {
+        id: sale.id,
+        invoiceNo: sale.id,
+        totalAmount: totalAmt,
+        payAmount: Number(sale.pay) || 0,
+        changeAmount: Number(sale.change) || 0,
+        customerName: sale.customer_name || "Umum",
+        paymentMethod: sale.payment_method || "Tunai",
+        createdAt: sale.date,
+        customer: { name: sale.customer_name || "Umum" },
+        items: itemsList.map((item: any) => ({
+          qty: item.quantity || item.qty || 1,
+          price: Number(item.price) || 0,
+          subtotal: (Number(item.quantity || item.qty || 1) * Number(item.price || 0)),
+          product: { name: item.name || item.productName || "Barang" }
+        }))
+      };
     });
 
     const totalRevenue = sales.reduce((acc, sale) => acc + sale.totalAmount, 0);

@@ -203,7 +203,11 @@ export default function PengaturanPage() {
       XLSX.utils.book_append_sheet(workbook, wsDebts, "Piutang_Pelanggan");
 
       // 6. Sheet Arus Keuangan
-      const rawFin = JSON.parse(localStorage.getItem("tw_financials") || "[]");
+      const rawFin = JSON.parse(
+        localStorage.getItem("tw_financials") ||
+        localStorage.getItem("kasirq_keuangan") ||
+        localStorage.getItem("tw_cash_flow") || "[]"
+      );
       const finData = [
         ["BUKU BESAR ARUS KEUANGAN KAS MASUK & KELUAR"],
         ["ID", "Tanggal", "Keterangan Transaksi", "Tipe (IN/OUT)", "Nominal (Rp)"],
@@ -244,19 +248,71 @@ export default function PengaturanPage() {
     }
   };
 
+  // FULL RESET: MENGHAPUS SELURUH KEUANGAN, SALDO, PIUTANG, STOK & OPERASIONAL DARI SPESIFIK AKURAT
   const handleFullReset = () => {
-    const confirmReset = confirm("PERINGATAN: Seluruh data omset, transaksi, piutang, stok barang, pelanggan, dan supplier akan dihapus permanen untuk memulai operasional dari awal. Lanjutkan?");
+    const confirmReset = confirm(
+      "PERINGATAN DENGAN AKSES PENUH:\n\nSeluruh data keuangan (pemasukan, pengeluaran, restock, saldo kas, laporan laba rugi), riwayat transaksi, piutang, hutang, stok barang, katalog SKU, pelanggan, dan supplier akan DIHAPUS TOTAL secara permanen.\n\nApakah Anda yakin ingin memulai operasional dari nol?"
+    );
     if (!confirmReset) return;
 
-    localStorage.removeItem("tw_master_sku");
-    localStorage.removeItem("tw_products");
-    localStorage.removeItem("tw_sales_history");
-    localStorage.removeItem("kasirq_piutang");
-    localStorage.removeItem("tw_financials");
-    localStorage.removeItem("tw_suppliers");
+    // 1. Daftar seluruh key spesifik operasional & keuangan (Termasuk key pembelian/restock)
+    const keysToRemove = [
+      // Key Produk & Stok
+      "tw_master_sku",
+      "tw_products",
+      
+      // Key Penjualan & Kasir
+      "tw_sales_history",
+      
+      // Key Pembelian / Restock / Pengeluaran Barang
+      "tw_pembelian",
+      "tw_purchases",
+      
+      // Key Keuangan, Kas, Laba Rugi, Piutang, Hutang
+      "kasirq_piutang",
+      "kasirq_hutang",
+      "tw_financials",
+      "kasirq_keuangan",
+      "tw_cash_flow",
+      "tw_expenses",
+      "tw_incomes",
+      "kasirq_saldo",
+      
+      // Key Relasi & Mitra
+      "tw_suppliers",
+      "tw_customers",
+      "kasirq_pelanggan",
+    ];
 
+    keysToRemove.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+
+    // 2. Pembersihan Sekunder (Iterasi otomatis untuk menangkap seluruh key dinamis yang tersisa)
+    try {
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach((key) => {
+        if (
+          key.startsWith("tw_fin_") ||
+          key.startsWith("kasirq_fin_") ||
+          key.startsWith("tw_kas_") ||
+          key.startsWith("tw_pur_") ||
+          key.includes("financial") ||
+          key.includes("keuangan") ||
+          key.includes("pembelian") ||
+          key.includes("purchase")
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.error("Gagal melakukan pindaian pembersihan sekunder", e);
+    }
+
+    // Picu event storage agar halaman lain mendeteksi pembersihan real-time
     window.dispatchEvent(new Event("storage"));
-    alert("Sistem berhasil di-reset penuh ke 0.");
+
+    alert("✓ Seluruh data keuangan, restock, dan operasional telah di-reset bersih secara total (0).");
     window.location.reload();
   };
 
@@ -274,7 +330,7 @@ export default function PengaturanPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          Sistem <span>/</span> <strong>Pengaturan Aplikasi &amp; Identitas Toko</strong>
+          <strong>PENGATURAN APLIKASI &amp; IDENTITAS TOKO</strong>
         </div>
         
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -528,7 +584,7 @@ export default function PengaturanPage() {
               <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#ef4444" }}>Full Reset (Mulai dari 0)</h3>
             </div>
             <p style={{ fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "16px" }}>
-              Hapus seluruh data omset, transaksi, piutang, stok barang, pelanggan, dan supplier untuk memulai operasional toko baru dari awal.
+              Hapus seluruh data omset, transaksi, keuangan, piutang, hutang, stok barang, pelanggan, dan supplier untuk memulai operasional toko baru dari awal.
             </p>
             <button
               onClick={handleFullReset}
@@ -548,7 +604,7 @@ export default function PengaturanPage() {
                 boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
               }}
             >
-              <span>🔄</span> Full Reset Semua Data ke 0
+              <span>🔄</span> Full Reset Semua Data Keuangan &amp; Operasional
             </button>
           </div>
 

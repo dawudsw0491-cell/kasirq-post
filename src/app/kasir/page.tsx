@@ -7,28 +7,34 @@ export default function KasirPage() {
   const [cart, setCart] = useState<any[]>([]);
   const [scanBuffer, setScanBuffer] = useState("");
   const [payAmount, setPayAmount] = useState<number | "">("");
-  const [priceType, setPriceType] = useState<"retail" | "wholesale">("retail");
-  const [paymentMethod, setPaymentMethod] = useState<"tunai" | "bon">("tunai");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [customerName, setCustomerName] = useState("");
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
-  const [lastScannedItem, setLastScannedItem] = useState<any>(null);
+
+  // State untuk Modal Pengaturan Takaran & Level Harga Item Curah
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [modalPriceType, setModalPriceType] = useState<"retail" | "wholesale">("retail");
+  const [qtyMode, setQtyMode] = useState("1"); // "1/5", "1/4", "1/2", "1", "2", "custom"
+  const [customQty, setCustomQty] = useState("1");
+
   const lastKeyTimeRef = useRef<number>(0);
 
-  useEffect(() => {
-    const loadProducts = () => {
-      const saved = localStorage.getItem("tw_products");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          const activeOnly = parsed.filter((p: any) => p.isActive !== false && p.status !== "inactive");
-          setProducts(activeOnly);
-        } catch (e) {
-          setProducts([]);
-        }
+  const loadProducts = () => {
+    const saved = localStorage.getItem("tw_products");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const activeOnly = parsed.filter((p: any) => p.isActive !== false && p.status !== "inactive");
+        setProducts(activeOnly);
+      } catch (e) {
+        setProducts([]);
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     loadProducts();
 
     setIsOnline(navigator.onLine);
@@ -77,6 +83,103 @@ export default function KasirPage() {
     return Number(product.retailPrice || product.sellPrice || 0);
   };
 
+  // Membuka Modal saat produk diklik di katalog / discan
+  const handleOpenModal = (product: any) => {
+    setSelectedProduct(product);
+    setModalPriceType("retail");
+    setQtyMode("1");
+    setCustomQty("1");
+    setIsModalOpen(true);
+  };
+
+  // Kalkulasi Qty dan Harga Berdasarkan Pilihan Modal (Mendukung Patokan Owner atau Proporsional)
+  const calculateModalResult = () => {
+    if (!selectedProduct) return { qty: 1, unitPrice: 0, totalPrice: 0, buyPriceUnit: 0 };
+
+    const baseBuy = Number(selectedProduct.buyPrice || 0);
+    const baseRetail = Number(selectedProduct.retailPrice || selectedProduct.sellPrice || 0);
+    const baseWholesale = Number(selectedProduct.wholesalePrice || baseRetail);
+    const activeBaseUnit = modalPriceType === "wholesale" ? baseWholesale : baseRetail;
+
+    let qty = 1;
+    let totalPrice = activeBaseUnit;
+
+    if (qtyMode === "1/5") {
+      qty = 0.2;
+      totalPrice = selectedProduct.priceFifth && Number(selectedProduct.priceFifth) > 0
+        ? Number(selectedProduct.priceFifth)
+        : activeBaseUnit * 0.2;
+    } else if (qtyMode === "1/4") {
+      qty = 0.25;
+      totalPrice = selectedProduct.priceQuarter && Number(selectedProduct.priceQuarter) > 0
+        ? Number(selectedProduct.priceQuarter)
+        : activeBaseUnit * 0.25;
+    } else if (qtyMode === "1/2") {
+      qty = 0.5;
+      totalPrice = selectedProduct.priceHalf && Number(selectedProduct.priceHalf) > 0
+        ? Number(selectedProduct.priceHalf)
+        : activeBaseUnit * 0.5;
+    } else if (qtyMode === "1") {
+      qty = 1;
+      totalPrice = activeBaseUnit;
+    } else if (qtyMode === "2") {
+      qty = 2;
+      totalPrice = activeBaseUnit * 2;
+    } else {
+      qty = parseFloat(customQty) || 1;
+      totalPrice = activeBaseUnit * qty;
+    }
+
+    const unitPrice = qty > 0 ? totalPrice / qty : activeBaseUnit;
+    const buyPriceUnit = baseBuy; // Harga modal per satuan dasar untuk kalkulasi margin profit di dashboard
+
+    return { qty, unitPrice, totalPrice, buyPriceUnit };
+  };
+
+  // Konfirmasi Tambah ke Keranjang dari Modal
+  const handleConfirmAddToCart = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+
+    const { qty, unitPrice, totalPrice, buyPriceUnit } = calculateModalResult();
+
+    setCart((prevCart) => {
+      // Cek apakah item dengan SKU dan mode harga yang sama sudah ada di keranjang
+      const existingIndex = prevCart.findIndex(
+        (item) => item.skuCode === selectedProduct.skuCode && item.priceMode === modalPriceType
+      );
+
+      if (existingIndex > -1) {
+        const updated = [...prevCart];
+        const currentItem = updated[existingIndex];
+        const newQty = Number((currentItem.qty + qty).toFixed(4));
+        updated[existingIndex] = {
+          ...currentItem,
+          qty: newQty,
+          sellPrice: unitPrice,
+          buyPrice: buyPriceUnit,
+        };
+        return updated;
+      } else {
+        return [
+          ...prevCart,
+          {
+            ...selectedProduct,
+            qty,
+            sellPrice: unitPrice,
+            buyPrice: buyPriceUnit,
+            priceMode: modalPriceType,
+          },
+        ];
+      }
+    });
+
+    setMessage(`✓ ${selectedProduct.name} (${qty} ${selectedProduct.unit || "kg"}) ditambahkan ke keranjang`);
+    setTimeout(() => setMessage(""), 2500);
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+  };
+
   const processScannedCode = (code: string) => {
     const found = products.find(
       (p) =>
@@ -85,60 +188,11 @@ export default function KasirPage() {
     );
 
     if (found) {
-      const activePrice = getProductPrice(found, priceType);
-      let currentQty = 1;
-
-      setCart((prevCart) => {
-        const existing = prevCart.find((item) => item.skuCode === found.skuCode);
-        if (existing) {
-          currentQty = existing.qty + 1;
-          return prevCart.map((item) =>
-            item.skuCode === found.skuCode ? { ...item, qty: currentQty } : item
-          );
-        } else {
-          return [...prevCart, { ...found, qty: 1, sellPrice: activePrice, priceMode: priceType }];
-        }
-      });
-
-      setLastScannedItem({
-        ...found,
-        sellPrice: activePrice,
-        priceMode: priceType,
-        qty: currentQty,
-        totalAmount: activePrice * currentQty,
-      });
-
-      setMessage(`✓ ${found.name} masuk keranjang (${priceType === "wholesale" ? "Grosir" : "Retail"})`);
-      setTimeout(() => setMessage(""), 2000);
+      handleOpenModal(found);
     } else {
       setMessage(`❌ SKU/Barang "${code}" tidak ditemukan atau non-aktif`);
-      setTimeout(() => setMessage(""), 3000);
+      setTimeout(() => setMessage("3000"), 3000);
     }
-  };
-
-  const addToCartManual = (product: any) => {
-    const activePrice = getProductPrice(product, priceType);
-    let currentQty = 1;
-
-    setCart((prevCart) => {
-      const existing = prevCart.find((item) => item.skuCode === product.skuCode);
-      if (existing) {
-        currentQty = existing.qty + 1;
-        return prevCart.map((item) =>
-          item.skuCode === product.skuCode ? { ...item, qty: currentQty } : item
-        );
-      } else {
-        return [...prevCart, { ...product, qty: 1, sellPrice: activePrice, priceMode: priceType }];
-      }
-    });
-
-    setLastScannedItem({
-      ...product,
-      sellPrice: activePrice,
-      priceMode: priceType,
-      qty: currentQty,
-      totalAmount: activePrice * currentQty,
-    });
   };
 
   const handleItemPriceModeChange = (skuCode: string, mode: "retail" | "wholesale") => {
@@ -154,22 +208,22 @@ export default function KasirPage() {
   };
 
   const totalCart = cart.reduce((sum, item) => sum + (item.sellPrice || 0) * item.qty, 0);
-  const changeAmount = paymentMethod === "tunai" && typeof payAmount === "number" && payAmount >= totalCart ? payAmount - totalCart : 0;
+  const changeAmount = paymentMethod === "cash" && typeof payAmount === "number" && payAmount >= totalCart ? payAmount - totalCart : 0;
 
   const handleCheckout = () => {
     if (cart.length === 0) {
-      alert("Keranjang masih kosong! Silakan scan barang terlebih dahulu.");
+      alert("Keranjang masih kosong! Silakan pilih barang terlebih dahulu.");
       return;
     }
 
-    if (paymentMethod === "tunai") {
+    if (paymentMethod === "cash") {
       if (typeof payAmount !== "number" || payAmount < totalCart) {
         alert("Nominal pembayaran tunai kurang dari total belanja!");
         return;
       }
-    } else if (paymentMethod === "bon") {
+    } else if (paymentMethod === "piutang") {
       if (!customerName.trim()) {
-        alert("Mohon masukkan nama pelanggan untuk transaksi Bon!");
+        alert("Mohon masukkan nama pelanggan untuk transaksi Piutang!");
         return;
       }
     }
@@ -181,16 +235,16 @@ export default function KasirPage() {
       items: cart,
       total: totalCart,
       paymentMethod,
-      customerName: paymentMethod === "bon" ? customerName.trim() : "Umum",
-      pay: paymentMethod === "tunai" ? payAmount : 0,
-      change: paymentMethod === "tunai" ? changeAmount : 0,
-      status: paymentMethod === "bon" ? "Unpaid (Piutang)" : "Paid",
+      customerName: paymentMethod === "piutang" ? customerName.trim() : "Umum",
+      pay: paymentMethod === "cash" ? payAmount : totalCart,
+      change: paymentMethod === "cash" ? changeAmount : 0,
+      status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
     };
 
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
     localStorage.setItem("tw_sales_history", JSON.stringify([transaction, ...savedHistory]));
 
-    if (paymentMethod === "bon") {
+    if (paymentMethod === "piutang") {
       const savedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
       const newDebtRecord = {
         id: "PIU-" + Date.now(),
@@ -211,7 +265,7 @@ export default function KasirPage() {
       if (cartItem) {
         const currentStock = Number(p.stock || 0);
         const newStock = Math.max(0, currentStock - cartItem.qty);
-        return { ...p, stock: newStock };
+        return { ...p, stock: Number(newStock.toFixed(4)) };
       }
       return p;
     });
@@ -222,19 +276,20 @@ export default function KasirPage() {
     const activeOnly = updatedProducts.filter((p: any) => p.isActive !== false && p.status !== "inactive");
     setProducts(activeOnly);
 
-    setMessage(`✓ Transaksi ${paymentMethod === "bon" ? "BON (Piutang)" : "TUNAI"} Berhasil! Stok barang telah dipotong.`);
+    setMessage(`✓ Transaksi Berhasil! Stok barang telah dipotong.`);
     setCart([]);
     setPayAmount("");
     setCustomerName("");
-    setLastScannedItem(null);
     setTimeout(() => setMessage(""), 4000);
   };
+
+  const modalPreview = calculateModalResult();
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>Kasir POS (Tunai, Bon &amp; Potong Stok)</strong>
+          <strong>KASIR POS</strong>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
@@ -259,44 +314,10 @@ export default function KasirPage() {
 
       <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", padding: "20px" }}>
         
+        {/* KOLOM KIRI: KATALOG PRODUK */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Scanner &amp; Mode Harga</h3>
-
-            <div style={{ display: "flex", gap: "8px", background: "rgba(255,255,255,0.03)", padding: "4px", borderRadius: "8px", border: "1px solid var(--tw-border)" }}>
-              <button
-                type="button"
-                onClick={() => setPriceType("retail")}
-                style={{
-                  padding: "6px 12px",
-                  background: priceType === "retail" ? "#0284c7" : "transparent",
-                  color: priceType === "retail" ? "#fff" : "var(--tw-muted)",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                }}
-              >
-                🏷️ Harga Retail
-              </button>
-              <button
-                type="button"
-                onClick={() => setPriceType("wholesale")}
-                style={{
-                  padding: "6px 12px",
-                  background: priceType === "wholesale" ? "#f59e0b" : "transparent",
-                  color: priceType === "wholesale" ? "#fff" : "var(--tw-muted)",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                }}
-              >
-                📦 Harga Grosir
-              </button>
-            </div>
+            <h3 className="tw-card-title" style={{ margin: 0 }}>Katalog Produk &amp; Barang Curah</h3>
           </div>
 
           {message && (
@@ -305,37 +326,13 @@ export default function KasirPage() {
             </div>
           )}
 
-          {lastScannedItem && (
-            <div style={{ padding: "12px", background: "rgba(56, 189, 248, 0.08)", border: "1px solid #38bdf8", borderRadius: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.7rem", color: "#38bdf8", textTransform: "uppercase", fontWeight: "bold" }}>📦 Detail SKU Terakhir Discan ({lastScannedItem.priceMode === "wholesale" ? "Grosir" : "Retail"})</span>
-                <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>SKU: {lastScannedItem.skuCode}</span>
-              </div>
-              <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: "#fff" }}>{lastScannedItem.name}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginTop: "4px", fontSize: "0.8rem" }}>
-                <div style={{ background: "rgba(255,255,255,0.03)", padding: "6px", borderRadius: "6px" }}>
-                  <span style={{ color: "var(--tw-muted)", display: "block", fontSize: "0.65rem" }}>Harga Terpilih</span>
-                  <strong style={{ color: "#10b981" }}>Rp {lastScannedItem.sellPrice.toLocaleString("id-ID")}</strong>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.03)", padding: "6px", borderRadius: "6px" }}>
-                  <span style={{ color: "var(--tw-muted)", display: "block", fontSize: "0.65rem" }}>Qty Scan</span>
-                  <strong style={{ color: "#38bdf8" }}>{lastScannedItem.qty} {lastScannedItem.unit || "pcs"}</strong>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.03)", padding: "6px", borderRadius: "6px" }}>
-                  <span style={{ color: "var(--tw-muted)", display: "block", fontSize: "0.65rem" }}>Total Amount</span>
-                  <strong style={{ color: "#f59e0b" }}>Rp {lastScannedItem.totalAmount.toLocaleString("id-ID")}</strong>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div style={{ padding: "10px", background: "rgba(56, 189, 248, 0.03)", border: "1px dashed rgba(56, 189, 248, 0.4)", borderRadius: "8px" }}>
             <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>
-              💡 Scan barcode produk atau klik dari daftar di bawah.
+              💡 Klik produk di bawah untuk mengatur takaran (fraksi/desimal) serta memilih harga Retail atau Grosir.
             </span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "10px", maxHeight: "260px", overflowY: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px", maxHeight: "380px", overflowY: "auto" }}>
             {products.length === 0 ? (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "30px", color: "var(--tw-muted)" }}>
                 Belum ada produk aktif tersedia.
@@ -344,28 +341,39 @@ export default function KasirPage() {
               products.map((p, idx) => (
                 <div
                   key={idx}
-                  onClick={() => addToCartManual(p)}
+                  onClick={() => handleOpenModal(p)}
                   style={{
-                    padding: "10px",
+                    padding: "12px",
                     background: "rgba(255,255,255,0.02)",
                     border: "1px solid var(--tw-border)",
                     borderRadius: "8px",
                     cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    gap: "6px"
                   }}
                 >
-                  <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block", marginBottom: "2px" }}>{p.name}</strong>
-                  <span style={{ fontSize: "0.75rem", color: "#38bdf8", display: "block" }}>SKU: {p.skuCode}</span>
-                  <span style={{ fontSize: "0.7rem", color: "#10b981" }}>Rp {Number(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</span>
+                  <div>
+                    <span style={{ fontSize: "0.65rem", color: "#38bdf8", fontWeight: "bold" }}>{p.skuCode}</span>
+                    <strong style={{ fontSize: "0.85rem", color: "#fff", display: "block" }}>{p.name}</strong>
+                    <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Stok: {p.stock} {p.unit || "kg"}</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.75rem", color: "#10b981", fontWeight: "bold" }}>R: Rp {Number(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: "bold" }}>G: Rp {Number(p.wholesalePrice || 0).toLocaleString("id-ID")}</div>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
 
+        {/* KOLOM KANAN: KERANJANG & CHECKOUT */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px", height: "fit-content" }}>
           <h3 className="tw-card-title">Keranjang Belanja</h3>
 
-          <div style={{ maxHeight: "200px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ maxHeight: "220px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
             {cart.length === 0 ? (
               <div style={{ textAlign: "center", padding: "30px", color: "var(--tw-muted)", fontSize: "0.85rem" }}>
                 Keranjang kosong.
@@ -376,14 +384,14 @@ export default function KasirPage() {
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{item.name}</strong>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                      <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{item.qty} {item.unit || "pcs"}</small>
+                      <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Qty: {item.qty} {item.unit || ""}</small>
                       <select
                         value={item.priceMode || "retail"}
                         onChange={(e) => handleItemPriceModeChange(item.skuCode, e.target.value as "retail" | "wholesale")}
                         style={{ fontSize: "0.65rem", padding: "2px 4px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--tw-border)", borderRadius: "4px", color: "#38bdf8" }}
                       >
-                        <option value="retail" style={{ background: "#090d16" }}>Retail: Rp {Number(item.retailPrice || item.sellPrice || 0).toLocaleString("id-ID")}</option>
-                        <option value="wholesale" style={{ background: "#090d16" }}>Grosir: Rp {Number(item.wholesalePrice || item.retailPrice || 0).toLocaleString("id-ID")}</option>
+                        <option value="retail" style={{ background: "#090d16" }}>Retail</option>
+                        <option value="wholesale" style={{ background: "#090d16" }}>Grosir</option>
                       </select>
                     </div>
                   </div>
@@ -402,44 +410,28 @@ export default function KasirPage() {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Pilih Jenis Pembayaran</label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("tunai")}
-                  style={{
-                    padding: "8px",
-                    background: paymentMethod === "tunai" ? "#10b981" : "rgba(255,255,255,0.03)",
-                    color: paymentMethod === "tunai" ? "#fff" : "var(--tw-muted)",
-                    border: "1px solid var(--tw-border)",
-                    borderRadius: "8px",
-                    fontWeight: "bold",
-                    fontSize: "0.8rem",
-                    cursor: "pointer",
-                  }}
-                >
-                  💵 Tunai / Cash
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("bon")}
-                  style={{
-                    padding: "8px",
-                    background: paymentMethod === "bon" ? "#ef4444" : "rgba(255,255,255,0.03)",
-                    color: paymentMethod === "bon" ? "#fff" : "var(--tw-muted)",
-                    border: "1px solid var(--tw-border)",
-                    borderRadius: "8px",
-                    fontWeight: "bold",
-                    fontSize: "0.8rem",
-                    cursor: "pointer",
-                  }}
-                >
-                  📝 Bon / Piutang
-                </button>
-              </div>
+              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Metode Pembayaran</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid var(--tw-border)",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  fontSize: "0.85rem",
+                  fontWeight: "bold",
+                }}
+              >
+                <option value="cash" style={{ background: "#090d16" }}>💵 Cash (Tunai)</option>
+                <option value="piutang" style={{ background: "#090d16" }}>📝 Piutang (Bon)</option>
+                <option value="transfer" style={{ background: "#090d16" }}>💳 Transfer</option>
+              </select>
             </div>
 
-            {paymentMethod === "tunai" ? (
+            {paymentMethod === "cash" ? (
               <>
                 <div>
                   <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nominal Uang Tunai</label>
@@ -456,9 +448,9 @@ export default function KasirPage() {
                   <strong style={{ color: "#38bdf8" }}>Rp {changeAmount.toLocaleString("id-ID")}</strong>
                 </div>
               </>
-            ) : (
+            ) : paymentMethod === "piutang" ? (
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "#ef4444", marginBottom: "4px" }}>Nama Pelanggan (Hutang / Bon)</label>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "#ef4444", marginBottom: "4px" }}>Nama Pelanggan (Piutang / Bon)</label>
                 <input
                   type="text"
                   placeholder="Masukkan nama pembeli..."
@@ -467,7 +459,7 @@ export default function KasirPage() {
                   style={{ width: "100%", padding: "8px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid #ef4444", borderRadius: "8px", color: "#fff" }}
                 />
               </div>
-            )}
+            ) : null}
 
             <button
               onClick={handleCheckout}
@@ -477,15 +469,141 @@ export default function KasirPage() {
                 fontWeight: "bold",
                 marginTop: "6px",
                 cursor: "pointer",
-                background: paymentMethod === "bon" ? "#ef4444" : "#0284c7",
+                background: paymentMethod === "piutang" ? "#ef4444" : "#10b981",
               }}
             >
-              {paymentMethod === "bon" ? "Submit Transaksi Bon (Catat Piutang)" : "Submit &amp; Potong Stok"}
+              Bayar
             </button>
           </div>
         </div>
 
       </div>
+
+      {/* MODAL PENGATURAN TAKARAN & HARGA (RETAIL / GROSIR) */}
+      {isModalOpen && selectedProduct && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
+          <div style={{ backgroundColor: "#0b0d16", border: "1px solid var(--tw-border)", borderRadius: "12px", width: "420px", padding: "24px", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}>
+            <h3 style={{ color: "#FFFFFF", marginTop: 0, marginBottom: "4px", fontSize: "1.1rem" }}>Atur Takaran &amp; Harga</h3>
+            <p style={{ color: "#38bdf8", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "16px" }}>
+              {selectedProduct.name} <span style={{ color: "var(--tw-muted)", fontWeight: "normal" }}>(Stok: {selectedProduct.stock} {selectedProduct.unit || "kg"})</span>
+            </p>
+
+            <form onSubmit={handleConfirmAddToCart} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* PILIHAN LEVEL HARGA (RETAIL VS GROSIR) */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "6px" }}>Pilih Level Harga</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalPriceType("retail")}
+                    style={{
+                      padding: "8px",
+                      borderRadius: "6px",
+                      border: modalPriceType === "retail" ? "1px solid #10b981" : "1px solid var(--tw-border)",
+                      background: modalPriceType === "retail" ? "rgba(16, 185, 129, 0.15)" : "rgba(255,255,255,0.02)",
+                      color: modalPriceType === "retail" ? "#10b981" : "var(--tw-muted)",
+                      fontSize: "0.8rem",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Retail: Rp {Number(selectedProduct.retailPrice || selectedProduct.sellPrice || 0).toLocaleString("id-ID")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalPriceType("wholesale")}
+                    style={{
+                      padding: "8px",
+                      borderRadius: "6px",
+                      border: modalPriceType === "wholesale" ? "1px solid #f59e0b" : "1px solid var(--tw-border)",
+                      background: modalPriceType === "wholesale" ? "rgba(245, 158, 11, 0.15)" : "rgba(255,255,255,0.02)",
+                      color: modalPriceType === "wholesale" ? "#f59e0b" : "var(--tw-muted)",
+                      fontSize: "0.8rem",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Grosir: Rp {Number(selectedProduct.wholesalePrice || 0).toLocaleString("id-ID")}
+                  </button>
+                </div>
+              </div>
+
+              {/* PILIHAN TAKARAN / PECAHAN CEPAT */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "6px" }}>Pilih Takaran / Qty ({selectedProduct.unit || "kg"})</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginBottom: "8px" }}>
+                  {[
+                    { label: "1/5 (0.2)", val: "1/5" },
+                    { label: "1/4 (0.25)", val: "1/4" },
+                    { label: "1/2 (0.5)", val: "1/2" },
+                    { label: "1 Penuh", val: "1" },
+                    { label: "2 Penuh", val: "2" },
+                    { label: "Custom", val: "custom" },
+                  ].map((btn) => (
+                    <button
+                      key={btn.val}
+                      type="button"
+                      onClick={() => setQtyMode(btn.val)}
+                      style={{
+                        padding: "8px",
+                        borderRadius: "6px",
+                        border: qtyMode === btn.val ? "1px solid #38bdf8" : "1px solid var(--tw-border)",
+                        background: qtyMode === btn.val ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.02)",
+                        color: qtyMode === btn.val ? "#38bdf8" : "#fff",
+                        fontSize: "0.75rem",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+
+                {qtyMode === "custom" && (
+                  <input
+                    type="number"
+                    step="any"
+                    autoFocus
+                    placeholder="Masukkan jumlah bebas (misal: 1.5)"
+                    value={customQty}
+                    onChange={(e) => setCustomQty(e.target.value)}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", backgroundColor: "#090d16", border: "1px solid #38bdf8", color: "#FFF", fontSize: "0.9rem", boxSizing: "border-box" }}
+                  />
+                )}
+              </div>
+
+              {/* PREVIEW TOTAL HARGA */}
+              <div style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--tw-border)" }}>
+                <div>
+                  <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)", display: "block" }}>Subtotal ({modalPriceType.toUpperCase()}):</span>
+                  <strong style={{ fontSize: "0.85rem", color: "#38bdf8" }}>{modalPreview.qty} {selectedProduct.unit || "unit"}</strong>
+                </div>
+                <strong style={{ fontSize: "1.1rem", color: "#10b981" }}>
+                  Rp {modalPreview.totalPrice.toLocaleString("id-ID")}
+                </strong>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  style={{ background: "transparent", border: "1px solid var(--tw-border)", color: "var(--tw-muted)", borderRadius: "6px", padding: "8px 14px", cursor: "pointer", fontSize: "0.8rem" }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  style={{ background: "#0284c7", border: "none", color: "#FFFFFF", borderRadius: "6px", padding: "8px 16px", fontWeight: "bold", cursor: "pointer", fontSize: "0.8rem" }}
+                >
+                  Masukkan Keranjang
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

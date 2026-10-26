@@ -115,7 +115,7 @@ export default function PenjualanPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          Transaksi <span>/</span> <strong>Rekapitulasi Penjualan &amp; Status Nota Terintegrasi</strong>
+        <strong>PENJUALAN &amp; STATUS NOTA</strong>
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>

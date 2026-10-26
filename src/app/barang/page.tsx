@@ -47,7 +47,7 @@ export default function BarangPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>Monitoring Inventaris &amp; Saldo Stok Global</strong>
+          <strong>MONITORING STOCK GLOBAL</strong>
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
@@ -104,8 +104,13 @@ export default function BarangPage() {
                       <td style={{ padding: "12px", color: "#10b981" }}>Rp {(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</td>
                       <td style={{ padding: "12px", color: "#f59e0b" }}>Rp {(p.wholesalePrice || 0).toLocaleString("id-ID")}</td>
                       <td style={{ padding: "12px", fontWeight: "bold" }}>
-                        <span style={{ padding: "4px 10px", background: Number(p.stock) <= 5 ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.15)", color: Number(p.stock) <= 5 ? "#ef4444" : "#10b981", borderRadius: "6px" }}>
-                          {p.stock || 0} unit
+                        <span style={{ 
+                          padding: "4px 10px", 
+                          background: Number(p.stock) <= 0 ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.15)", 
+                          color: Number(p.stock) <= 0 ? "#ef4444" : "#10b981", 
+                          borderRadius: "6px" 
+                        }}>
+                          {p.stock !== undefined ? p.stock : 0} {p.unit || "pcs"}
                         </span>
                       </td>
                     </tr>

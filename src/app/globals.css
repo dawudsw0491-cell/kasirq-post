@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --tw-bg: #090d16;
-  --tw-card-bg: #0f172a;
-  --tw-border: #1e293b;
-  --tw-text: #f8fafc;
-  --tw-muted: #94a3b8;
-  --tw-primary: #0284c7;
+  --tw-bg: #ffffff;             /* Background utama tetap putih */
+  --tw-card-bg: #0f172a;        /* Card dikembalikan menjadi warna gelap */
+  --tw-border: #e2e8f0;         /* Warna border halaman */
+  --tw-text: #1e293b;           /* Warna teks utama gelap */
+  --tw-muted: #64748b;          /* Warna teks sekunder/muted */
+  --tw-primary: #0284c7;        
   --tw-primary-hover: #0369a1;
 }
 
@@ -40,8 +40,8 @@ body {
 /* SIDEBAR STYLES */
 .tw-sidebar {
   width: 260px;
-  background-color: #0c1322;
-  border-right: 1px solid var(--tw-border);
+  background-color: #f8fafc;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   padding: 20px;
@@ -58,13 +58,13 @@ body {
 
 .tw-brand-copy strong {
   display: block;
-  color: #ffffff;
+  color: #0f172a;
   font-size: 0.95rem;
   letter-spacing: 0.5px;
 }
 
 .tw-brand-copy small {
-  color: #38bdf8;
+  color: #0284c7;
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 1px;
@@ -89,7 +89,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  color: var(--tw-muted);
+  color: #475569;
   text-decoration: none;
   border-radius: 8px;
   font-size: 0.88rem;
@@ -98,20 +98,20 @@ body {
 }
 
 .tw-nav-link:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f172a;
 }
 
 .tw-nav-link.tw-nav-active {
-  background: rgba(2, 132, 199, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+  border: 1px solid rgba(2, 132, 199, 0.3);
 }
 
 .tw-sidebar-bottom {
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid var(--tw-border);
+  border-top: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -132,26 +132,27 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background-color: var(--tw-bg);
 }
 
 .tw-topbar {
   height: 64px;
-  border-bottom: 1px solid var(--tw-border);
+  border-bottom: 1px solid #e2e8f0;
   padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: rgba(15, 23, 42, 0.4);
+  background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(8px);
 }
 
 .tw-breadcrumb {
   font-size: 0.85rem;
-  color: var(--tw-muted);
+  color: #64748b;
 }
 
 .tw-breadcrumb strong {
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .tw-live-badge {
@@ -170,19 +171,20 @@ body {
   flex: 1;
 }
 
-/* CARDS & FORM UI */
+/* CARDS & FORM UI (GELAP) */
 .tw-card {
-  background-color: var(--tw-card-bg);
-  border: 1px solid var(--tw-border);
+  background-color: var(--tw-card-bg) !important;
+  border: 1px solid #1e293b !important;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: #f8fafc !important;
 }
 
 .tw-card-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .tw-btn {
@@ -204,18 +206,18 @@ body {
 }
 
 input, select, textarea {
-  background-color: #090d16;
-  border: 1px solid var(--tw-border);
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 10px 12px;
-  color: #ffffff;
+  color: #0f172a;
   font-size: 0.88rem;
   outline: none;
   transition: border-color 0.2s ease;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--tw-primary);
+  border-color: #0284c7;
 }
 
 /* ========================================================
@@ -226,11 +228,10 @@ input:focus, select:focus, textarea:focus {
     flex-direction: column;
   }
 
-  /* Sidebar Mobile Dirapikan Menjadi Header Kompak & Scrollable Tanpa Paksaan */
   .tw-sidebar {
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid var(--tw-border);
+    border-bottom: 1px solid #e2e8f0;
     padding: 10px 14px;
     gap: 0;
   }
@@ -244,7 +245,7 @@ input:focus, select:focus, textarea:focus {
   }
 
   .tw-nav-label {
-    display: none; /* Sembunyikan label grup navigasi di HP */
+    display: none;
   }
 
   .tw-nav {
@@ -253,11 +254,11 @@ input:focus, select:focus, textarea:focus {
     white-space: nowrap;
     padding-bottom: 4px;
     gap: 6px;
-    scrollbar-width: none; /* Hilangkan scrollbar di Firefox */
+    scrollbar-width: none;
   }
 
   .tw-nav::-webkit-scrollbar {
-    display: none; /* Hilangkan scrollbar di Chrome/Safari agar bersih */
+    display: none;
   }
 
   .tw-nav-link {
@@ -268,7 +269,7 @@ input:focus, select:focus, textarea:focus {
   }
 
   .tw-sidebar-bottom {
-    display: none; /* Sembunyikan footer sidebar di HP agar hemat ruang */
+    display: none;
   }
 
   .tw-topbar {
@@ -289,19 +290,16 @@ input:focus, select:focus, textarea:focus {
     padding: 14px;
   }
 
-  /* PAKSA SEMUA GRID MENJADI 1 KOLOM VERTIKAL DI MOBILE AGAR FIT RATIO */
   div[style*="gridTemplateColumns"],
   div[style*="grid-template-columns"] {
     grid-template-columns: 1fr !important;
   }
 
-  /* PENYESUAIAN CARD DI MOBILE SUPAYA TIDAK PADAT */
   .tw-card {
     padding: 14px;
     border-radius: 10px;
   }
 
-  /* Penyesuaian Modal pada Ponsel agar Presisi & Tidak Terpotong */
   div[style*="position: fixed"] {
     padding: 10px !important;
     align-items: center !important;
@@ -314,4 +312,57 @@ input:focus, select:focus, textarea:focus {
     overflow-y: auto !important;
     padding: 16px !important;
   }
+}
+/* Kustomisasi Scrollbar Transparan & Tipis untuk Kartu Gelap */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+/* Scrollbar Transparan dengan Efek Autohide (Hilang Saat Tidak Digulir) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+*:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* Untuk browser berbasis Webkit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent; /* Transparan total saat diam */
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+/* Munculkan scrollbar tipis hanya saat kursor diarahkan ke area scroll (hover) */
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }

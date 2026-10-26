@@ -61,7 +61,7 @@ export default function SupplierPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>Manajemen Supplier</strong>
+          <strong>MANAJEMEN SUPPLIER</strong>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
@@ -98,10 +98,10 @@ export default function SupplierPage() {
 
           <form onSubmit={handleAddSupplier} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Toko / Perusahaan Supplier</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Supplier</label>
               <input
                 type="text"
-                placeholder="Contoh: PT Distribusi Jaya..."
+                placeholder="Contoh: Merchant Online/Offline..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 style={{ width: "100%" }}
@@ -109,10 +109,10 @@ export default function SupplierPage() {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Sales / Kontak Person</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Alamat Supplier</label>
               <input
                 type="text"
-                placeholder="Contoh: Bapak Andi..."
+                placeholder="Contoh: Kota/Provinsi..."
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 style={{ width: "100%" }}
@@ -123,7 +123,7 @@ export default function SupplierPage() {
               <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>No. Telepon / WhatsApp</label>
               <input
                 type="text"
-                placeholder="Contoh: 081298765432"
+                placeholder="Contoh: 08129876xxxx"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 style={{ width: "100%" }}
@@ -139,8 +139,7 @@ export default function SupplierPage() {
         {/* TABEL DATA SUPPLIER */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Supplier ({suppliers.length})</h3>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Database Mitra Toko</span>
+            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Supplier</h3>
           </div>
 
           <div style={{ overflowX: "auto", maxHeight: "450px", overflowY: "auto" }}>

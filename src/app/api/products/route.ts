@@ -1,22 +1,30 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { supabase } from "@/lib/supabase";
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-export const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
-
-// GET: Ambil semua daftar barang
+// GET: Ambil semua daftar barang dari Supabase
 export async function GET() {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        category: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-    return NextResponse.json({ success: true, data: products });
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Mapping data agar sesuai dengan format nama variabel frontend Anda
+    const formattedData = (products || []).map((item) => ({
+      id: item.id,
+      sku: item.sku_code,
+      name: item.name,
+      price: item.retail_price,
+      costPrice: item.wholesale_price,
+      stock: item.stock,
+      createdAt: item.created_at,
+    }));
+
+    return NextResponse.json({ success: true, data: formattedData });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || "Gagal mengambil data" },
@@ -25,7 +33,7 @@ export async function GET() {
   }
 }
 
-// POST: Tambah barang baru
+// POST: Tambah barang baru ke Supabase
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -47,15 +55,24 @@ export async function POST(request: Request) {
 
     const finalSku = sku && sku.trim() !== "" ? sku.trim() : `SKU-${Date.now()}`;
 
-    const newProduct = await prisma.product.create({
-      data: {
-        name: name.trim(),
-        sku: finalSku,
-        price: parseFloat(price),
-        costPrice: costPrice ? parseFloat(costPrice) : 0,
-        stock: stock ? parseInt(stock, 10) : 0,
-      },
-    });
+    const { data: newProduct, error } = await supabase
+      .from("products")
+      .insert([
+        {
+          sku_code: finalSku,
+          name: name.trim(),
+          retail_price: parseFloat(price),
+          wholesale_price: costPrice ? parseFloat(costPrice) : 0,
+          stock: stock ? parseInt(stock, 10) : 0,
+          is_active: true,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ success: true, data: newProduct }, { status: 201 });
   } catch (error: any) {
@@ -66,7 +83,7 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE: Hapus barang berdasarkan ID
+// DELETE: Hapus barang berdasarkan ID dari Supabase
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -79,9 +96,14 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await prisma.product.delete({
-      where: { id: Number(id) },
-    });
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ success: true, message: "Barang berhasil dihapus" });
   } catch (error: any) {

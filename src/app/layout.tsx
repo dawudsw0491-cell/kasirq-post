@@ -1,8 +1,9 @@
 "use client";
 
 import "./globals.css";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export interface FeatureSettings {
   barang: boolean;
@@ -33,6 +34,7 @@ export default function RootLayout({
   const [isOnline, setIsOnline] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [features, setFeatures] = useState<FeatureSettings>(DEFAULT_FEATURES);
+  const pathname = usePathname();
 
   const loadSettingsAndFeatures = () => {
     const savedStore = localStorage.getItem("tw_store_name");
@@ -53,9 +55,20 @@ export default function RootLayout({
 
     const handleStorage = () => {
       loadSettingsAndFeatures();
+      const sidebarState = localStorage.getItem("tw_sidebar_collapsed");
+      if (sidebarState !== null) {
+        setIsSidebarCollapsed(sidebarState === "true");
+      }
     };
 
+    // Ambil status awal dari localStorage saat pertama render
+    const savedCollapse = localStorage.getItem("tw_sidebar_collapsed");
+    if (savedCollapse !== null) {
+      setIsSidebarCollapsed(savedCollapse === "true");
+    }
+
     window.addEventListener("storage", handleStorage);
+    window.addEventListener("toggleSidebar", handleStorage as EventListener);
     setIsOnline(navigator.onLine);
 
     const handleOnline = () => setIsOnline(true);
@@ -65,10 +78,17 @@ export default function RootLayout({
 
     return () => {
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("toggleSidebar", handleStorage as EventListener);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  const toggleSidebar = (collapse: boolean) => {
+    setIsSidebarCollapsed(collapse);
+    localStorage.setItem("tw_sidebar_collapsed", String(collapse));
+    window.dispatchEvent(new Event("toggleSidebar"));
+  };
 
   return (
     <html lang="id">
@@ -134,7 +154,7 @@ export default function RootLayout({
                   </Link>
 
                   <button
-                    onClick={() => setIsSidebarCollapsed(true)}
+                    onClick={() => toggleSidebar(true)}
                     title="Tutup Menu"
                     style={{
                       background: "transparent",
@@ -151,38 +171,38 @@ export default function RootLayout({
 
                 <div className="tw-nav-label" style={{ fontSize: "0.65rem", margin: "4px 0" }}>WORKSPACE</div>
                 <nav className="tw-nav" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <Link href="/" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">⌂</span>Dashboard</Link>
-                  <Link href="/kasir" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">▣</span>Kasir (POS)</Link>
+                  <Link href="/" className={`tw-nav-link ${pathname === "/" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">⌂</span>Dashboard Monitoring</Link>
+                  <Link href="/kasir" className={`tw-nav-link ${pathname === "/kasir" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">▣</span>Kasir (POS)</Link>
                 </nav>
 
                 <div className="tw-nav-label" style={{ fontSize: "0.65rem", margin: "6px 0 4px 0" }}>MANAJEMEN TOKO</div>
                 <nav className="tw-nav" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   {features.barang !== false && (
-                    <Link href="/barang" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">▦</span>Barang</Link>
+                    <Link href="/barang" className={`tw-nav-link ${pathname === "/barang" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">▦</span>Barang</Link>
                   )}
                   {features.kodeBarang !== false && (
-                    <Link href="/kode-barang" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">◇</span>Kode Barang (SKU)</Link>
+                    <Link href="/kode-barang" className={`tw-nav-link ${pathname === "/kode-barang" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">◇</span>Kode Barang (SKU)</Link>
                   )}
                   {features.pelanggan !== false && (
-                    <Link href="/pelanggan" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">♧</span>Pelanggan</Link>
+                    <Link href="/pelanggan" className={`tw-nav-link ${pathname === "/pelanggan" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">♧</span>Pelanggan</Link>
                   )}
                   {features.supplier !== false && (
-                    <Link href="/supplier" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">⇄</span>Supplier</Link>
+                    <Link href="/supplier" className={`tw-nav-link ${pathname === "/supplier" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">⇄</span>Supplier</Link>
                   )}
                 </nav>
 
                 <div className="tw-nav-label" style={{ fontSize: "0.65rem", margin: "6px 0 4px 0" }}>TRANSAKSI &amp; SISTEM</div>
                 <nav className="tw-nav" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   {features.pembelian !== false && (
-                    <Link href="/piutang" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">↓</span>Hutang &amp; Piutang</Link>
+                    <Link href="/piutang" className={`tw-nav-link ${pathname === "/piutang" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">↓</span>Hutang &amp; Piutang</Link>
                   )}
                   {features.penjualan !== false && (
-                    <Link href="/penjualan" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">↗</span>Penjualan</Link>
+                    <Link href="/penjualan" className={`tw-nav-link ${pathname === "/penjualan" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">↗</span>Penjualan</Link>
                   )}
                   {features.keuangan !== false && (
-                    <Link href="/keuangan" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">💰</span>Keuangan</Link>
+                    <Link href="/keuangan" className={`tw-nav-link ${pathname === "/keuangan" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">💰</span>Keuangan</Link>
                   )}
-                  <Link href="/pengaturan" className="tw-nav-link" style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">⚙</span>Pengaturan</Link>
+                  <Link href="/pengaturan" className={`tw-nav-link ${pathname === "/pengaturan" ? "tw-nav-active" : ""}`} style={{ padding: "6px 10px", fontSize: "0.85rem" }}><span className="tw-nav-icon">⚙</span>Pengaturan</Link>
                 </nav>
               </div>
 
@@ -213,38 +233,31 @@ export default function RootLayout({
               transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
+            {/* Tombol Expand Global: Muncul otomatis di pojok kiri atas semua halaman saat sidebar ditutup */}
             {isSidebarCollapsed && (
-              <div style={{ position: "fixed", top: "12px", left: "16px", zIndex: 1100 }}>
+              <div style={{ padding: "12px 20px 0 20px", display: "flex", alignItems: "center" }}>
                 <button
-                  onClick={() => setIsSidebarCollapsed(false)}
+                  onClick={() => toggleSidebar(false)}
                   title="Buka Menu"
                   style={{
                     backgroundColor: "#0284c7",
                     color: "#ffffff",
                     border: "none",
-                    borderRadius: "8px",
-                    width: "36px",
-                    height: "36px",
+                    borderRadius: "6px",
+                    width: "32px",
+                    height: "32px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     cursor: "pointer",
-                    fontSize: "1.1rem",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-                    transition: "all 0.2s ease",
+                    fontSize: "0.95rem",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
                   }}
                 >
                   ☰
                 </button>
               </div>
             )}
-
-            <style jsx global>{`
-              .tw-topbar {
-                padding-left: ${isSidebarCollapsed ? "60px" : "20px"} !important;
-                transition: padding-left 0.3s ease;
-              }
-            `}</style>
 
             {children}
           </div>

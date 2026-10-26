@@ -103,7 +103,7 @@ export default function PiutangPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>Manajemen Piutang &amp; Pelunasan Bon (Estimasi Jatuh Tempo 7 Hari)</strong>
+          <strong>MANAJEMEN PIUTANG & PELUNASAN</strong>
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
@@ -147,7 +147,7 @@ export default function PiutangPage() {
 
         {/* TABEL DAFTAR PIUTANG / BON */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Bon &amp; Piutang Pelanggan ({debts.length})</h3>
+          <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan</h3>
 
           <div style={{ overflowX: "auto", maxHeight: "500px", overflowY: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>

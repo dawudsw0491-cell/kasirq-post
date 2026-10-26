@@ -46,7 +46,7 @@ export default function KeuanganPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>Laporan Keuangan &amp; Rekapitulasi</strong>
+          <strong>LAPORAN KEUANGAN</strong>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
@@ -96,7 +96,6 @@ export default function KeuanganPage() {
         <div className="tw-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <h3 className="tw-card-title" style={{ margin: 0 }}>Ringkasan Aktivitas Finansial</h3>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Sinkronisasi Data Transaksi &amp; Pembelian</span>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>

@@ -6,12 +6,12 @@ export default function KodeBarangPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [skuCode, setSkuCode] = useState("");
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState("Sembako");
   const [buyPrice, setBuyPrice] = useState<number | "">("");
   const [retailPrice, setRetailPrice] = useState<number | "">("");
   const [wholesalePrice, setWholesalePrice] = useState<number | "">("");
   const [stock, setStock] = useState<number | "">("");
-  const [unit, setUnit] = useState("pcs");
+  const [unit, setUnit] = useState("kg");
   const [searchTerm, setSearchTerm] = useState("");
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
@@ -50,7 +50,6 @@ export default function KodeBarangPage() {
     };
   }, []);
 
-  // Fungsi untuk membuat kode SKU unik otomatis jika tidak ada barcode
   const handleGenerateUniqueSku = () => {
     const randomCode = "TW-" + Math.floor(100000 + Math.random() * 900000);
     setSkuCode(randomCode);
@@ -60,22 +59,38 @@ export default function KodeBarangPage() {
     }
   };
 
-  // Handler saat SKU di-scan atau diketik, jika sudah ada maka otomatis isi form untuk mode update
   const handleSkuChange = (val: string) => {
     setSkuCode(val);
     const found = products.find((p) => p.skuCode?.toLowerCase() === val.trim().toLowerCase());
     if (found) {
       setName(found.name || "");
-      setCategory(found.category || "");
+      setCategory(found.category || "Sembako");
       setBuyPrice(found.buyPrice || "");
       setRetailPrice(found.retailPrice || found.sellPrice || "");
       setWholesalePrice(found.wholesalePrice || "");
       setStock(found.stock !== undefined ? found.stock : "");
-      setUnit(found.unit || "pcs");
+      setUnit(found.unit || "kg");
       setMessage(`ℹ️ SKU "${val}" sudah terdaftar. Mode Update aktif.`);
     } else {
       setMessage("");
     }
+  };
+
+  // Fungsi untuk memuat data SKU ke form saat tombol "Edit" diklik di tabel
+  const handleEditRow = (p: any) => {
+    setSkuCode(p.skuCode || "");
+    setName(p.name || "");
+    setCategory(p.category || "Sembako");
+    setBuyPrice(p.buyPrice !== undefined ? p.buyPrice : "");
+    setRetailPrice(p.retailPrice !== undefined ? p.retailPrice : (p.sellPrice !== undefined ? p.sellPrice : ""));
+    setWholesalePrice(p.wholesalePrice !== undefined ? p.wholesalePrice : "");
+    setStock(p.stock !== undefined ? p.stock : "");
+    setUnit(p.unit || "kg");
+    setMessage(`✏️ Mode Edit aktif untuk SKU: ${p.skuCode}`);
+    if (skuInputRef.current) {
+      skuInputRef.current.focus();
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSaveSku = (e: React.FormEvent) => {
@@ -89,32 +104,32 @@ export default function KodeBarangPage() {
     const existingIndex = products.findIndex((p) => p.skuCode?.toLowerCase() === cleanSku.toLowerCase());
     let updatedProducts = [...products];
 
+    const parsedStockValue = stock === "" ? 0 : parseFloat(String(stock));
+
     if (existingIndex >= 0) {
-      // ANTI-DUPLIKASI: Update data pada SKU yang sama persis
       updatedProducts[existingIndex] = {
         ...updatedProducts[existingIndex],
         name,
-        category: category || "Umum",
+        category: category || "Sembako",
         buyPrice: buyPrice === "" ? updatedProducts[existingIndex].buyPrice : Number(buyPrice),
         retailPrice: Number(retailPrice),
         wholesalePrice: Number(wholesalePrice),
         sellPrice: Number(retailPrice),
-        stock: stock === "" ? updatedProducts[existingIndex].stock : Number(stock),
-        unit: unit || "pcs",
+        stock: stock === "" ? updatedProducts[existingIndex].stock : parsedStockValue,
+        unit: unit || "kg",
       };
-      setMessage(`✓ Master SKU ${cleanSku} berhasil diperbarui tanpa duplikasi!`);
+      setMessage(`✓ Master SKU ${cleanSku} berhasil diperbarui!`);
     } else {
-      // TAMBAH BARU JIKA BELUM ADA
       const newProductData = {
         skuCode: cleanSku,
         name,
-        category: category || "Umum",
+        category: category || "Sembako",
         buyPrice: buyPrice === "" ? 0 : Number(buyPrice),
         retailPrice: Number(retailPrice),
         wholesalePrice: Number(wholesalePrice),
         sellPrice: Number(retailPrice),
-        stock: stock === "" ? 0 : Number(stock),
-        unit: unit || "pcs",
+        stock: parsedStockValue,
+        unit: unit || "kg",
         isActive: true,
         status: "active",
       };
@@ -128,12 +143,12 @@ export default function KodeBarangPage() {
 
     setSkuCode("");
     setName("");
-    setCategory("");
+    setCategory("Sembako");
     setBuyPrice("");
     setRetailPrice("");
     setWholesalePrice("");
     setStock("");
-    setUnit("pcs");
+    setUnit("kg");
     setTimeout(() => setMessage(""), 4000);
 
     if (skuInputRef.current) {
@@ -168,7 +183,7 @@ export default function KodeBarangPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>Master Kode Barang (Registrasi Barang, Stok &amp; Anti-Duplikasi)</strong>
+          <strong>MASTER KODE BARANG</strong>
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
@@ -179,12 +194,11 @@ export default function KodeBarangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: "20px" }}>
         
-        {/* FORM REGISTRASI MASTER & STOK */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "14px", height: "fit-content" }}>
           <h3 className="tw-card-title">Registrasi / Scan SKU &amp; Stok Masuk</h3>
 
           {message && (
-            <div style={{ padding: "10px", background: message.includes("ℹ️") ? "rgba(56, 189, 248, 0.15)" : "rgba(16, 185, 129, 0.15)", color: message.includes("ℹ️") ? "#38bdf8" : "#10b981", borderRadius: "8px", fontSize: "0.85rem" }}>
+            <div style={{ padding: "10px", background: message.includes("ℹ️") || message.includes("✏️") ? "rgba(56, 189, 248, 0.15)" : "rgba(16, 185, 129, 0.15)", color: message.includes("ℹ️") || message.includes("✏️") ? "#38bdf8" : "#10b981", borderRadius: "8px", fontSize: "0.85rem" }}>
               {message}
             </div>
           )}
@@ -215,7 +229,7 @@ export default function KodeBarangPage() {
               <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Nama Barang</label>
               <input
                 type="text"
-                placeholder="Contoh: Le Minerale 600ml..."
+                placeholder="Contoh: Gula Pasir / Minyak Goreng..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
@@ -225,13 +239,20 @@ export default function KodeBarangPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
                 <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Kategori</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Minuman..."
+                <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
-                />
+                >
+                  <option value="Sembako" style={{ background: "#090d16" }}>Sembako</option>
+                  <option value="Kebutuhan Pokok" style={{ background: "#090d16" }}>Kebutuhan Pokok</option>
+                  <option value="Makanan & Minuman" style={{ background: "#090d16" }}>Makanan & Minuman</option>
+                  <option value="Bumbu Dapur" style={{ background: "#090d16" }}>Bumbu Dapur</option>
+                  <option value="Rokok & Tembakau" style={{ background: "#090d16" }}>Rokok & Tembakau</option>
+                  <option value="Perawatan Tubuh" style={{ background: "#090d16" }}>Perawatan Tubuh</option>
+                  <option value="Kebersihan Rumah Tangga" style={{ background: "#090d16" }}>Kebersihan Rumah Tangga</option>
+                  <option value="Lainnya" style={{ background: "#090d16" }}>Lainnya</option>
+                </select>
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Satuan Unit</label>
@@ -240,29 +261,25 @@ export default function KodeBarangPage() {
                   onChange={(e) => setUnit(e.target.value)}
                   style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
                 >
+                  <option value="kg" style={{ background: "#090d16" }}>Kg (Kilogram)</option>
+                  <option value="gram" style={{ background: "#090d16" }}>Gram</option>
                   <option value="pcs" style={{ background: "#090d16" }}>Pcs</option>
                   <option value="pack" style={{ background: "#090d16" }}>Pack</option>
-                  <option value="slop" style={{ background: "#090d16" }}>Slop</option>
-                  <option value="lusin" style={{ background: "#090d16" }}>Lusin</option>
-                  <option value="kg" style={{ background: "#090d16" }}>Kg</option>
-                  <option value="gram" style={{ background: "#090d16" }}>Gram</option>
-                  <option value="renceng" style={{ background: "#090d16" }}>Renceng</option>
-                  <option value="krat" style={{ background: "#090d16" }}>Krat</option>
-                  <option value="dus" style={{ background: "#090d16" }}>Dus / Karton</option>
-                  <option value="unit" style={{ background: "#090d16" }}>Unit</option>
-                  <option value="lainnya" style={{ background: "#090d16" }}>Lainnya</option>
+                  <option value="liter" style={{ background: "#090d16" }}>Liter</option>
+                  <option value="dus" style={{ background: "#090d16" }}>Dus</option>
                 </select>
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal</label>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal (Bisa Desimal: 0.25 - 2)</label>
                 <input
                   type="number"
-                  placeholder="0"
+                  step="any"
+                  placeholder="0 atau 0.25"
                   value={stock}
-                  onChange={(e) => setStock(e.target.value === "" ? "" : Number(e.target.value))}
+                  onChange={(e) => setStock(e.target.value === "" ? "" : parseFloat(e.target.value))}
                   style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
                 />
               </div>
@@ -307,7 +324,6 @@ export default function KodeBarangPage() {
           </form>
         </div>
 
-        {/* TABEL DAFTAR MASTER SKU */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
             <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Master SKU ({filteredProducts.length})</h3>
@@ -326,6 +342,7 @@ export default function KodeBarangPage() {
                 <tr style={{ borderBottom: "1px solid var(--tw-border)", color: "var(--tw-muted)" }}>
                   <th style={{ padding: "10px" }}>SKU</th>
                   <th style={{ padding: "10px" }}>Nama Barang</th>
+                  <th style={{ padding: "10px" }}>Kategori</th>
                   <th style={{ padding: "10px" }}>Stok / Satuan</th>
                   <th style={{ padding: "10px" }}>Retail</th>
                   <th style={{ padding: "10px" }}>Grosir</th>
@@ -336,8 +353,8 @@ export default function KodeBarangPage() {
               <tbody>
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
-                      Belum ada master SKU terdaftar. Silakan registrasi produk baru melalui form di sebelah kiri.
+                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
+                      Belum ada master SKU terdaftar.
                     </td>
                   </tr>
                 ) : (
@@ -347,8 +364,9 @@ export default function KodeBarangPage() {
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "10px", fontWeight: "bold", color: "#38bdf8" }}>{p.skuCode}</td>
                         <td style={{ padding: "10px", color: "#fff" }}>{p.name}</td>
+                        <td style={{ padding: "10px", color: "var(--tw-muted)", fontSize: "0.78rem" }}>{p.category || "Sembako"}</td>
                         <td style={{ padding: "10px", color: "#38bdf8", fontWeight: "bold" }}>
-                          {p.stock || 0} <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)", fontWeight: "normal" }}>({p.unit || "pcs"})</span>
+                          {p.stock !== undefined ? p.stock : 0} <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)", fontWeight: "normal" }}>({p.unit || "kg"})</span>
                         </td>
                         <td style={{ padding: "10px", color: "#10b981" }}>Rp {(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(p.wholesalePrice || 0).toLocaleString("id-ID")}</td>
@@ -357,7 +375,13 @@ export default function KodeBarangPage() {
                             {isActive ? "Aktif" : "Non-Aktif"}
                           </span>
                         </td>
-                        <td style={{ padding: "10px", textAlign: "center" }}>
+                        <td style={{ padding: "10px", textAlign: "center", display: "flex", justifyContent: "center", gap: "6px" }}>
+                          <button
+                            onClick={() => handleEditRow(p)}
+                            style={{ padding: "4px 8px", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                          >
+                            Edit
+                          </button>
                           <button
                             onClick={() => toggleStatus(p.skuCode)}
                             style={{ padding: "4px 8px", background: isActive ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", color: isActive ? "#ef4444" : "#10b981", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
