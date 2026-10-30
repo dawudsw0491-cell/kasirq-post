@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { supabase } from "@/lib/supabase";
 
 export default function KasirPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -19,9 +21,28 @@ export default function KasirPage() {
   const [qtyMode, setQtyMode] = useState("1"); // "1/5", "1/4", "1/2", "1", "2", "custom"
   const [customQty, setCustomQty] = useState("1");
 
+  // State tambahan untuk Scan Kamera HP di Kasir
+  const [isKasirScanning, setIsKasirScanning] = useState(false);
+  const kasirScannerRef = useRef<Html5QrcodeScanner | null>(null);
+
   const lastKeyTimeRef = useRef<number>(0);
 
-  const loadProducts = () => {
+  const loadProducts = async () => {
+    try {
+      const { data, error } = await supabase.from("tw_products").select("*");
+      if (!error && data) {
+        const activeOnly = data.filter((p: any) => p.isActive !== false && p.status !== "inactive");
+        setProducts(activeOnly);
+        localStorage.setItem("tw_products", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
+      }
+    } catch (e) {
+      fallbackLoadLocal();
+    }
+  };
+
+  const fallbackLoadLocal = () => {
     const saved = localStorage.getItem("tw_products");
     if (saved) {
       try {
@@ -68,13 +89,55 @@ export default function KasirPage() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
 
+    // Supabase Realtime Subscription untuk kasir
+    const channel = supabase
+      .channel("public:tw_products_kasir")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
+        loadProducts();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("keydown", handleGlobalKeyDown);
+      if (kasirScannerRef.current) {
+        kasirScannerRef.current.clear().catch(() => {});
+      }
+      supabase.removeChannel(channel);
     };
   }, [scanBuffer]);
+
+  // Toggle Scanner Kamera di Kasir
+  const toggleKasirCamera = () => {
+    if (isKasirScanning) {
+      if (kasirScannerRef.current) {
+        kasirScannerRef.current.clear().catch(() => {});
+        kasirScannerRef.current = null;
+      }
+      setIsKasirScanning(false);
+    } else {
+      setIsKasirScanning(true);
+      setTimeout(() => {
+        const scanner = new Html5QrcodeScanner(
+          "reader-kasir",
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          false
+        );
+        scanner.render(
+          (decodedText) => {
+            processScannedCode(decodedText.trim());
+            scanner.clear().catch(() => {});
+            kasirScannerRef.current = null;
+            setIsKasirScanning(false);
+          },
+          (error) => {}
+        );
+        kasirScannerRef.current = scanner;
+      }, 150);
+    }
+  };
 
   const getProductPrice = (product: any, type: "retail" | "wholesale") => {
     if (type === "wholesale") {
@@ -92,7 +155,7 @@ export default function KasirPage() {
     setIsModalOpen(true);
   };
 
-  // Kalkulasi Qty dan Harga Berdasarkan Pilihan Modal (Mendukung Patokan Owner atau Proporsional)
+  // Kalkulasi Qty dan Harga Berdasarkan Pilihan Modal
   const calculateModalResult = () => {
     if (!selectedProduct) return { qty: 1, unitPrice: 0, totalPrice: 0, buyPriceUnit: 0 };
 
@@ -106,19 +169,13 @@ export default function KasirPage() {
 
     if (qtyMode === "1/5") {
       qty = 0.2;
-      totalPrice = selectedProduct.priceFifth && Number(selectedProduct.priceFifth) > 0
-        ? Number(selectedProduct.priceFifth)
-        : activeBaseUnit * 0.2;
+      totalPrice = activeBaseUnit * 0.2;
     } else if (qtyMode === "1/4") {
       qty = 0.25;
-      totalPrice = selectedProduct.priceQuarter && Number(selectedProduct.priceQuarter) > 0
-        ? Number(selectedProduct.priceQuarter)
-        : activeBaseUnit * 0.25;
+      totalPrice = activeBaseUnit * 0.25;
     } else if (qtyMode === "1/2") {
       qty = 0.5;
-      totalPrice = selectedProduct.priceHalf && Number(selectedProduct.priceHalf) > 0
-        ? Number(selectedProduct.priceHalf)
-        : activeBaseUnit * 0.5;
+      totalPrice = activeBaseUnit * 0.5;
     } else if (qtyMode === "1") {
       qty = 1;
       totalPrice = activeBaseUnit;
@@ -131,7 +188,7 @@ export default function KasirPage() {
     }
 
     const unitPrice = qty > 0 ? totalPrice / qty : activeBaseUnit;
-    const buyPriceUnit = baseBuy; // Harga modal per satuan dasar untuk kalkulasi margin profit di dashboard
+    const buyPriceUnit = baseBuy;
 
     return { qty, unitPrice, totalPrice, buyPriceUnit };
   };
@@ -144,7 +201,6 @@ export default function KasirPage() {
     const { qty, unitPrice, totalPrice, buyPriceUnit } = calculateModalResult();
 
     setCart((prevCart) => {
-      // Cek apakah item dengan SKU dan mode harga yang sama sudah ada di keranjang
       const existingIndex = prevCart.findIndex(
         (item) => item.skuCode === selectedProduct.skuCode && item.priceMode === modalPriceType
       );
@@ -210,7 +266,7 @@ export default function KasirPage() {
   const totalCart = cart.reduce((sum, item) => sum + (item.sellPrice || 0) * item.qty, 0);
   const changeAmount = paymentMethod === "cash" && typeof payAmount === "number" && payAmount >= totalCart ? payAmount - totalCart : 0;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       alert("Keranjang masih kosong! Silakan pilih barang terlebih dahulu.");
       return;
@@ -241,6 +297,9 @@ export default function KasirPage() {
       status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
     };
 
+    // Simpan history transaksi ke Supabase
+    await supabase.from("tw_sales_history").insert([transaction]);
+
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
     localStorage.setItem("tw_sales_history", JSON.stringify([transaction, ...savedHistory]));
 
@@ -259,22 +318,22 @@ export default function KasirPage() {
       localStorage.setItem("kasirq_piutang", JSON.stringify([newDebtRecord, ...savedDebts]));
     }
 
-    const allProductsRaw = JSON.parse(localStorage.getItem("tw_products") || "[]");
-    const updatedProducts = allProductsRaw.map((p: any) => {
-      const cartItem = cart.find((c) => c.skuCode === p.skuCode);
-      if (cartItem) {
-        const currentStock = Number(p.stock || 0);
+    // Update stok di Supabase untuk setiap produk di keranjang
+    for (const cartItem of cart) {
+      const currentProd = products.find((p) => p.skuCode === cartItem.skuCode);
+      if (currentProd) {
+        const currentStock = Number(currentProd.stock || 0);
         const newStock = Math.max(0, currentStock - cartItem.qty);
-        return { ...p, stock: Number(newStock.toFixed(4)) };
+        
+        await supabase
+          .from("tw_products")
+          .update({ stock: Number(newStock.toFixed(4)) })
+          .eq("skuCode", cartItem.skuCode);
       }
-      return p;
-    });
+    }
 
-    localStorage.setItem("tw_products", JSON.stringify(updatedProducts));
-    window.dispatchEvent(new Event("storage"));
-
-    const activeOnly = updatedProducts.filter((p: any) => p.isActive !== false && p.status !== "inactive");
-    setProducts(activeOnly);
+    // Refresh data produk
+    await loadProducts();
 
     setMessage(`✓ Transaksi Berhasil! Stok barang telah dipotong.`);
     setCart([]);
@@ -292,6 +351,13 @@ export default function KasirPage() {
           <strong>KASIR POS</strong>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button
+            type="button"
+            onClick={toggleKasirCamera}
+            style={{ background: isKasirScanning ? "#ef4444" : "#0284c7", color: "#fff", border: "none", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer" }}
+          >
+            {isKasirScanning ? "Tutup Kamera Scan" : "📷 Scan Kamera POS"}
+          </button>
           <span
             className="tw-live-badge"
             style={{
@@ -307,10 +373,18 @@ export default function KasirPage() {
                 boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
               }}
             />
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
+
+      {/* CONTAINER KAMERA KASIR POS */}
+      {isKasirScanning && (
+        <div style={{ margin: "15px 20px 0 20px", background: "#0b0d16", padding: "12px", borderRadius: "10px", border: "1px solid #38bdf8" }}>
+          <div style={{ color: "#38bdf8", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "8px" }}>📸 Arahkan Barcode / QR Produk ke Kamera POS:</div>
+          <div id="reader-kasir" style={{ width: "100%", maxWidth: "400px" }}></div>
+        </div>
+      )}
 
       <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", padding: "20px" }}>
         
@@ -328,7 +402,7 @@ export default function KasirPage() {
 
           <div style={{ padding: "10px", background: "rgba(56, 189, 248, 0.03)", border: "1px dashed rgba(56, 189, 248, 0.4)", borderRadius: "8px" }}>
             <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>
-              💡 Klik produk di bawah untuk mengatur takaran (fraksi/desimal) serta memilih harga Retail atau Grosir.
+              💡 Gunakan Alat Scanner USB/OTG, Scan Kamera POS, atau Klik produk di bawah untuk mengatur takaran &amp; tingkat harga.
             </span>
           </div>
 
@@ -479,7 +553,7 @@ export default function KasirPage() {
 
       </div>
 
-      {/* MODAL PENGATURAN TAKARAN & HARGA (RETAIL / GROSIR) */}
+      {/* MODAL PENGATURAN TAKARAN & HARGA */}
       {isModalOpen && selectedProduct && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
           <div style={{ backgroundColor: "#0b0d16", border: "1px solid var(--tw-border)", borderRadius: "12px", width: "420px", padding: "24px", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}>
@@ -489,7 +563,6 @@ export default function KasirPage() {
             </p>
 
             <form onSubmit={handleConfirmAddToCart} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {/* PILIHAN LEVEL HARGA (RETAIL VS GROSIR) */}
               <div>
                 <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "6px" }}>Pilih Level Harga</label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
@@ -528,7 +601,6 @@ export default function KasirPage() {
                 </div>
               </div>
 
-              {/* PILIHAN TAKARAN / PECAHAN CEPAT */}
               <div>
                 <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "6px" }}>Pilih Takaran / Qty ({selectedProduct.unit || "kg"})</label>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginBottom: "8px" }}>
@@ -573,7 +645,6 @@ export default function KasirPage() {
                 )}
               </div>
 
-              {/* PREVIEW TOTAL HARGA */}
               <div style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--tw-border)" }}>
                 <div>
                   <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)", display: "block" }}>Subtotal ({modalPriceType.toUpperCase()}):</span>

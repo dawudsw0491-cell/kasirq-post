@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 export default function DashboardPage() {
   const [storeName, setStoreName] = useState("Toko Wiwid");
@@ -15,17 +16,50 @@ export default function DashboardPage() {
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
 
-  const loadDashboardData = () => {
+  const loadDashboardData = async () => {
     const savedStore = localStorage.getItem("tw_store_name");
     if (savedStore) setStoreName(savedStore);
 
-    const products = JSON.parse(localStorage.getItem("tw_products") || "[]");
-    const rawSales = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
-    const debts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
+    let products: any[] = [];
+    let rawSales: any[] = [];
+    let debts: any[] = [];
+
+    try {
+      // 1. Ambil data produk dari Supabase
+      const { data: prodData } = await supabase.from("tw_products").select("*");
+      if (prodData) {
+        products = prodData;
+        localStorage.setItem("tw_products", JSON.stringify(prodData));
+      } else {
+        products = JSON.parse(localStorage.getItem("tw_products") || "[]");
+      }
+
+      // 2. Ambil data penjualan dari Supabase
+      const { data: salesData } = await supabase.from("tw_sales_history").select("*");
+      if (salesData) {
+        rawSales = salesData;
+        localStorage.setItem("tw_sales_history", JSON.stringify(salesData));
+      } else {
+        rawSales = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
+      }
+
+      // 3. Ambil data piutang dari Supabase (tw_debts)
+      const { data: debtData } = await supabase.from("tw_debts").select("*");
+      if (debtData) {
+        debts = debtData;
+        localStorage.setItem("kasirq_piutang", JSON.stringify(debtData));
+      } else {
+        debts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
+      }
+    } catch (e) {
+      products = JSON.parse(localStorage.getItem("tw_products") || "[]");
+      rawSales = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
+      debts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
+    }
 
     const sales = rawSales.map((s: any) => {
       const method = s.paymentMethod || s.paymentType || "tunai";
-      const isBon = method === "bon" || (s.pay === 0 && s.customerName && s.customerName !== "Umum");
+      const isBon = method === "bon" || method === "piutang" || (s.pay === 0 && s.customerName && s.customerName !== "Umum");
       return {
         ...s,
         paymentMethod: isBon ? "bon" : "tunai"
@@ -67,9 +101,38 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Supabase Realtime Subscriptions untuk Dashboard
+    const prodChannel = supabase
+      .channel("public:tw_products_dash")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
+        loadDashboardData();
+      })
+      .subscribe();
+
+    const salesChannel = supabase
+      .channel("public:tw_sales_dash")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_sales_history" }, () => {
+        loadDashboardData();
+      })
+      .subscribe();
+
+    const debtsChannel = supabase
+      .channel("public:tw_debts_dash")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
+        loadDashboardData();
+      })
+      .subscribe();
+
     const handleStorageChange = () => loadDashboardData();
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      supabase.removeChannel(prodChannel);
+      supabase.removeChannel(salesChannel);
+      supabase.removeChannel(debtsChannel);
+    };
   }, []);
 
   return (
@@ -99,7 +162,7 @@ export default function DashboardPage() {
             textShadow: "0 2px 5px rgba(0,0,0,0.4)"
           }}
         >
-          <span>✨ SELAMAT DATANG DI {storeName.toUpperCase()} — PUSAT MANAJEMEN RETAIL &amp; KASIR DIGITAL TERINTEGRASI ✨ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🚀 KELOLA STOK, OMSET, PROFIT, DAN PIUTANG PELANGGAN DENGAN MUDAH &amp; AKURAT 🚀 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💼 SIAP MELAYANI TRANSAKSI PENJUALAN HARIAN DENGAN CEPAT &amp; HANDAL 💼</span>
+          <span>✨ SELAMAT DATANG DI {storeName.toUpperCase()} — PUSAT MANAJEMEN RETAIL &amp; KASIR DIGITAL TERINTEGRASI SUPABASE ✨ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🚀 KELOLA STOK, OMSET, PROFIT, DAN PIUTANG PELANGGAN SECARA REAL-TIME 🚀 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💼 SIAP MELAYANI TRANSAKSI PENJUALAN HARIAN LINTAS PERANGKAT 💼</span>
         </div>
 
         <style jsx>{`
@@ -113,7 +176,7 @@ export default function DashboardPage() {
       {/* TOPBAR */}
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>DASHBOARD INTERAKTIF</strong>
+          <strong>DASHBOARD INTERAKTIF (SUPABASE SYNC)</strong>
         </div>
       </header>
 
@@ -179,7 +242,7 @@ export default function DashboardPage() {
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(30, 41, 59, 0.6)" }}>
                         <td style={{ padding: "8px", color: "#38bdf8", fontWeight: "600" }}>{item.skuCode}</td>
                         <td style={{ padding: "8px", color: "#FFFFFF", fontWeight: "bold" }}>{item.name}</td>
-                        <td style={{ padding: "8px", textAlign: "right", color: "#F87171", fontWeight: "bold" }}>{item.stock} pcs</td>
+                        <td style={{ padding: "8px", textAlign: "right", color: "#F87171", fontWeight: "bold" }}>{item.stock} {item.unit || "pcs"}</td>
                       </tr>
                     ))
                   )}
@@ -214,7 +277,7 @@ export default function DashboardPage() {
                         <tr key={idx} style={{ borderBottom: "1px solid rgba(30, 41, 59, 0.6)" }}>
                           <td style={{ padding: "8px" }}>
                             <strong style={{ color: "#38bdf8", display: "block" }}>{sale.id}</strong>
-                            <small style={{ color: "#CBD5E1", fontSize: "0.7rem" }}>{new Date(sale.date).toLocaleString("id-ID")}</small>
+                            <small style={{ color: "#CBD5E1", fontSize: "0.7rem" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</small>
                           </td>
                           <td style={{ padding: "8px" }}>
                             <span style={{ padding: "2px 6px", borderRadius: "4px", background: isBon ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)", color: isBon ? "#F87171" : "#34D399", fontSize: "0.7rem", fontWeight: "bold" }}>

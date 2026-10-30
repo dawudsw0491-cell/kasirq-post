@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function PenjualanPage() {
   const [sales, setSales] = useState<any[]>([]);
@@ -16,24 +17,21 @@ export default function PenjualanPage() {
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(true);
 
-  const loadData = () => {
-    const savedSales = localStorage.getItem("tw_sales_history");
-    if (savedSales) {
-      try {
-        const parsed = JSON.parse(savedSales);
-        // Normalisasi data agar konsisten dengan paymentMethod kasir POS
-        const normalized = parsed.map((s: any) => {
-          const method = s.paymentMethod || s.paymentType || "tunai";
-          const isBon = method === "bon" || (s.pay === 0 && s.customerName && s.customerName !== "Umum");
-          return {
-            ...s,
-            paymentMethod: isBon ? "bon" : "tunai"
-          };
-        });
-        setSales(normalized);
-      } catch (e) {
-        setSales([]);
+  const loadData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tw_sales_history")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        processAndSetSales(data);
+        localStorage.setItem("tw_sales_history", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
       }
+    } catch (e) {
+      fallbackLoadLocal();
     }
 
     const sName = localStorage.getItem("tw_store_name");
@@ -50,6 +48,30 @@ export default function PenjualanPage() {
     }
   };
 
+  const processAndSetSales = (parsed: any[]) => {
+    const normalized = parsed.map((s: any) => {
+      const method = s.paymentMethod || s.paymentType || "tunai";
+      const isBon = method === "bon" || method === "piutang" || (s.pay === 0 && s.customerName && s.customerName !== "Umum");
+      return {
+        ...s,
+        paymentMethod: isBon ? "bon" : "tunai"
+      };
+    });
+    setSales(normalized);
+  };
+
+  const fallbackLoadLocal = () => {
+    const savedSales = localStorage.getItem("tw_sales_history");
+    if (savedSales) {
+      try {
+        const parsed = JSON.parse(savedSales);
+        processAndSetSales(parsed);
+      } catch (e) {
+        setSales([]);
+      }
+    }
+  };
+
   useEffect(() => {
     loadData();
     setIsOnline(navigator.onLine);
@@ -61,10 +83,19 @@ export default function PenjualanPage() {
     const handleStorageChange = () => loadData();
     window.addEventListener("storage", handleStorageChange);
 
+    // Supabase Realtime Subscription untuk riwayat penjualan
+    const channel = supabase
+      .channel("public:tw_sales_history_penjualan")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_sales_history" }, () => {
+        loadData();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", handleStorageChange);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -119,7 +150,7 @@ export default function PenjualanPage() {
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
@@ -178,7 +209,7 @@ export default function PenjualanPage() {
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "10px", verticalAlign: "top" }}>
                           <strong style={{ color: "#38bdf8", display: "block" }}>{sale.id}</strong>
-                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{new Date(sale.date).toLocaleString("id-ID")}</small>
+                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</small>
                         </td>
 
                         <td style={{ padding: "10px", verticalAlign: "top" }}>
@@ -273,7 +304,7 @@ export default function PenjualanPage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: "600", color: "#64748b" }}>Waktu:</span>
-                <span style={{ fontWeight: "600", color: "#0f172a" }}>{new Date(selectedSale.date).toLocaleString("id-ID")}</span>
+                <span style={{ fontWeight: "600", color: "#0f172a" }}>{selectedSale.date ? new Date(selectedSale.date).toLocaleString("id-ID") : "-"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: "600", color: "#64748b" }}>Status Nota:</span>

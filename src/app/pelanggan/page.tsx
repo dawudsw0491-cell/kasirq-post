@@ -1,24 +1,47 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
-export default function SupplierPage() {
-  const [suppliers, setSuppliers] = useState<any[]>([]);
+export default function PelangganPage() {
+  const [customers, setCustomers] = useState<any[]>([]);
   const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
+  const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("tw_suppliers");
+  const loadCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tw_customers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setCustomers(data);
+        localStorage.setItem("tw_customers", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
+      }
+    } catch (e) {
+      fallbackLoadLocal();
+    }
+  };
+
+  const fallbackLoadLocal = () => {
+    const saved = localStorage.getItem("tw_customers");
     if (saved) {
       try {
-        setSuppliers(JSON.parse(saved));
+        setCustomers(JSON.parse(saved));
       } catch (e) {
-        setSuppliers([]);
+        setCustomers([]);
       }
     }
+  };
+
+  useEffect(() => {
+    loadCustomers();
 
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
@@ -26,33 +49,51 @@ export default function SupplierPage() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
+    // Supabase Realtime Subscription untuk sinkronisasi pelanggan
+    const channel = supabase
+      .channel("public:tw_customers")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_customers" }, () => {
+        loadCustomers();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  const handleAddSupplier = (e: React.FormEvent) => {
+  const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) {
-      alert("Mohon lengkapi Nama Supplier dan No. Telepon!");
+      alert("Mohon lengkapi Nama Pelanggan dan No. Telepon!");
       return;
     }
 
-    const newSupplier = {
-      id: Date.now(),
-      name,
-      contact: contact || "-",
-      phone,
+    const customerId = "CUST-" + Date.now();
+    const newCustomer = {
+      id: customerId,
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim() || "-",
     };
 
-    const updated = [newSupplier, ...suppliers];
-    setSuppliers(updated);
-    localStorage.setItem("tw_suppliers", JSON.stringify(updated));
+    // Simpan ke Supabase Cloud
+    const { error } = await supabase.from("tw_customers").insert([newCustomer]);
 
-    setMessage("Supplier baru berhasil ditambahkan!");
+    if (error) {
+      alert("Gagal menyimpan ke Cloud Database: " + error.message);
+      return;
+    }
+
+    const updated = [newCustomer, ...customers];
+    setCustomers(updated);
+    localStorage.setItem("tw_customers", JSON.stringify(updated));
+
+    setMessage("Pelanggan baru berhasil ditambahkan!");
     setName("");
-    setContact("");
+    setAddress("");
     setPhone("");
     setTimeout(() => setMessage(""), 3000);
   };
@@ -79,7 +120,7 @@ export default function SupplierPage() {
                 boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
               }}
             />
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
@@ -96,7 +137,7 @@ export default function SupplierPage() {
             </div>
           )}
 
-          <form onSubmit={handleAddSupplier} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <form onSubmit={handleAddCustomer} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div>
               <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Pelanggan</label>
               <input
@@ -104,7 +145,7 @@ export default function SupplierPage() {
                 placeholder="Contoh: Alexander..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
               />
             </div>
 
@@ -113,9 +154,9 @@ export default function SupplierPage() {
               <input
                 type="text"
                 placeholder="Contoh: Kota, Provinsi..."
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                style={{ width: "100%" }}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                style={{ width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
               />
             </div>
 
@@ -126,44 +167,44 @@ export default function SupplierPage() {
                 placeholder="Contoh: 08129876xxxx"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
               />
             </div>
 
-            <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "12px", fontWeight: "bold", marginTop: "8px" }}>
-              Simpan Supplier
+            <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "12px", fontWeight: "bold", marginTop: "8px", cursor: "pointer" }}>
+              Simpan Pelanggan
             </button>
           </form>
         </div>
 
-        {/* TABEL DATA SUPPLIER */}
+        {/* TABEL DATA PELANGGAN */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Pelanggan</h3>
-         </div>
+            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Pelanggan ({customers.length})</h3>
+          </div>
 
           <div style={{ overflowX: "auto", maxHeight: "450px", overflowY: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--tw-border)", color: "var(--tw-muted)" }}>
-                  <th style={{ padding: "10px" }}>Nama Supplier</th>
-                  <th style={{ padding: "10px" }}>Kontak Person</th>
+                  <th style={{ padding: "10px" }}>Nama Pelanggan</th>
+                  <th style={{ padding: "10px" }}>Alamat</th>
                   <th style={{ padding: "10px" }}>No. Telepon</th>
                 </tr>
               </thead>
               <tbody>
-                {suppliers.length === 0 ? (
+                {customers.length === 0 ? (
                   <tr>
                     <td colSpan={3} style={{ padding: "30px", textAlign: "center", color: "var(--tw-muted)" }}>
-                      Belum ada data supplier terdaftar.
+                      Belum ada data pelanggan terdaftar.
                     </td>
                   </tr>
                 ) : (
-                  suppliers.map((s, idx) => (
+                  customers.map((c, idx) => (
                     <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                      <td style={{ padding: "10px", fontWeight: "bold", color: "#fff" }}>{s.name}</td>
-                      <td style={{ padding: "10px", color: "var(--tw-muted)" }}>{s.contact}</td>
-                      <td style={{ padding: "10px", color: "#38bdf8" }}>{s.phone}</td>
+                      <td style={{ padding: "10px", fontWeight: "bold", color: "#fff" }}>{c.name}</td>
+                      <td style={{ padding: "10px", color: "var(--tw-muted)" }}>{c.address}</td>
+                      <td style={{ padding: "10px", color: "#38bdf8" }}>{c.phone}</td>
                     </tr>
                   ))
                 )}

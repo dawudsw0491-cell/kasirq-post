@@ -1,13 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function BarangPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isOnline, setIsOnline] = useState(true);
 
-  const loadProducts = () => {
+  const loadProducts = async () => {
+    try {
+      const { data, error } = await supabase.from("tw_products").select("*");
+      if (!error && data) {
+        setProducts(data.filter((p: any) => p.isActive !== false && p.status !== "inactive"));
+        localStorage.setItem("tw_products", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
+      }
+    } catch (e) {
+      fallbackLoadLocal();
+    }
+  };
+
+  const fallbackLoadLocal = () => {
     const saved = localStorage.getItem("tw_products");
     if (saved) {
       try {
@@ -30,10 +45,19 @@ export default function BarangPage() {
     const handleStorageChange = () => loadProducts();
     window.addEventListener("storage", handleStorageChange);
 
+    // Supabase Realtime Subscription untuk Monitoring Stok Global
+    const channel = supabase
+      .channel("public:tw_products_monitoring")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
+        loadProducts();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", handleStorageChange);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -51,7 +75,7 @@ export default function BarangPage() {
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>

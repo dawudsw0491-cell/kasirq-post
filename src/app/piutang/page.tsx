@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function PiutangPage() {
   const [debts, setDebts] = useState<any[]>([]);
@@ -9,7 +10,25 @@ export default function PiutangPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
 
-  const loadDebts = () => {
+  const loadDebts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tw_debts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setDebts(data);
+        localStorage.setItem("kasirq_piutang", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
+      }
+    } catch (e) {
+      fallbackLoadLocal();
+    }
+  };
+
+  const fallbackLoadLocal = () => {
     const savedDebts = localStorage.getItem("kasirq_piutang");
     if (savedDebts) {
       try {
@@ -31,10 +50,19 @@ export default function PiutangPage() {
     const handleStorageChange = () => loadDebts();
     window.addEventListener("storage", handleStorageChange);
 
+    // Supabase Realtime Subscription untuk sinkronisasi piutang
+    const channel = supabase
+      .channel("public:tw_debts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
+        loadDebts();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", handleStorageChange);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -48,7 +76,7 @@ export default function PiutangPage() {
     return { dueDate, diffDays };
   };
 
-  const handlePelunasanSubmit = (e: React.FormEvent) => {
+  const handlePelunasanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!payModalData || payAmount === "" || Number(payAmount) <= 0) {
       alert("Masukkan nominal pelunasan yang valid!");
@@ -61,15 +89,44 @@ export default function PiutangPage() {
       return;
     }
 
+    const newPaid = Number(payModalData.paidAmount || 0) + payNum;
+    const newRemaining = Number(payModalData.amount || 0) - newPaid;
+    const newStatus = newRemaining <= 0 ? "Lunas" : "Belum Lunas";
+
+    // Update ke Supabase tabel tw_debts
+    const { error: updateError } = await supabase
+      .from("tw_debts")
+      .update({
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
+        status: newStatus,
+      })
+      .eq("id", payModalData.id);
+
+    if (updateError) {
+      alert("Gagal memperbarui piutang di Cloud: " + updateError.message);
+      return;
+    }
+
+    // Catat pemasukan pelunasan ke Supabase tabel tw_finances otomatis
+    const financeRecord = {
+      id: "INC-" + Date.now(),
+      date: new Date().toISOString(),
+      type: "Masuk",
+      category: "Pelunasan Piutang / Bon",
+      description: `Pelunasan bon dari ${payModalData.customerName} (Trx: ${payModalData.trxId})`,
+      amount: payNum,
+    };
+
+    await supabase.from("tw_finances").insert([financeRecord]);
+
     const updatedDebts = debts.map((item) => {
       if (item.id === payModalData.id) {
-        const newPaid = item.paidAmount + payNum;
-        const newRemaining = item.amount - newPaid;
         return {
           ...item,
           paidAmount: newPaid,
           remainingAmount: newRemaining,
-          status: newRemaining <= 0 ? "Lunas" : "Belum Lunas",
+          status: newStatus,
         };
       }
       return item;
@@ -78,17 +135,9 @@ export default function PiutangPage() {
     setDebts(updatedDebts);
     localStorage.setItem("kasirq_piutang", JSON.stringify(updatedDebts));
 
-    // Catat pemasukan pelunasan ke modul Keuangan otomatis
+    // Sinkronisasi lokal keuangan
     const savedFin = JSON.parse(localStorage.getItem("tw_financials") || "[]");
-    const newFin = {
-      id: "INC-" + Date.now(),
-      date: new Date().toISOString(),
-      type: "income",
-      category: "Pelunasan Piutang / Bon",
-      description: `Pelunasan bon dari ${payModalData.customerName} (Trx: ${payModalData.trxId})`,
-      amount: payNum,
-    };
-    localStorage.setItem("tw_financials", JSON.stringify([newFin, ...savedFin]));
+    localStorage.setItem("tw_financials", JSON.stringify([financeRecord, ...savedFin]));
 
     window.dispatchEvent(new Event("storage"));
 
@@ -103,11 +152,11 @@ export default function PiutangPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>MANAJEMEN PIUTANG & PELUNASAN</strong>
+          <strong>MANAJEMEN PIUTANG &amp; PELUNASAN</strong>
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
@@ -138,7 +187,7 @@ export default function PiutangPage() {
                 onChange={(e) => setPayAmount(e.target.value === "" ? "" : Number(e.target.value))}
                 style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
               />
-              <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "8px 16px", fontWeight: "bold" }}>
+              <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "8px 16px", fontWeight: "bold", cursor: "pointer" }}>
                 Simpan Pelunasan
               </button>
             </form>
@@ -147,7 +196,7 @@ export default function PiutangPage() {
 
         {/* TABEL DAFTAR PIUTANG / BON */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan</h3>
+          <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan ({debts.length})</h3>
 
           <div style={{ overflowX: "auto", maxHeight: "500px", overflowY: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
@@ -180,12 +229,12 @@ export default function PiutangPage() {
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "10px" }}>
                           <strong style={{ color: "#38bdf8", display: "block" }}>{item.trxId}</strong>
-                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{new Date(item.date).toLocaleString("id-ID")}</small>
+                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{item.date ? new Date(item.date).toLocaleString("id-ID") : "-"}</small>
                         </td>
                         <td style={{ padding: "10px", color: "#fff", fontWeight: "bold" }}>{item.customerName}</td>
-                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {item.amount.toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {item.paidAmount.toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#ef4444", fontWeight: "bold" }}>Rp {item.remainingAmount.toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(item.amount || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {(item.paidAmount || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#ef4444", fontWeight: "bold" }}>Rp {(item.remainingAmount || 0).toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px" }}>
                           <div style={{ fontSize: "0.75rem", color: "#fff" }}>{dueDate.toLocaleDateString("id-ID")}</div>
                           {item.status !== "Lunas" && (

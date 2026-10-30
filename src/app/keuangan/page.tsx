@@ -1,30 +1,52 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function KeuanganPage() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
   const [purchaseHistory, setPurchaseHistory] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(true);
 
-  useEffect(() => {
-    const savedSales = localStorage.getItem("tw_sales_history");
-    if (savedSales) {
-      try {
-        setSalesHistory(JSON.parse(savedSales));
-      } catch (e) {
-        setSalesHistory([]);
-      }
-    }
+  const loadFinancialData = async () => {
+    try {
+      // Ambil data penjualan dari Supabase (tabel tw_sales_history)
+      const { data: salesData, error: salesError } = await supabase
+        .from("tw_sales_history")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    const savedPurchases = localStorage.getItem("tw_purchase_history");
-    if (savedPurchases) {
-      try {
-        setPurchaseHistory(JSON.parse(savedPurchases));
-      } catch (e) {
-        setPurchaseHistory([]);
+      if (!salesError && salesData) {
+        setSalesHistory(salesData);
+        localStorage.setItem("tw_sales_history", JSON.stringify(salesData));
+      } else {
+        const savedSales = localStorage.getItem("tw_sales_history");
+        if (savedSales) setSalesHistory(JSON.parse(savedSales));
       }
+
+      // Ambil data keuangan/pengeluaran dari Supabase (tabel tw_finances) atau fallback local
+      const { data: financeData, error: financeError } = await supabase
+        .from("tw_finances")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!financeError && financeData) {
+        setPurchaseHistory(financeData);
+        localStorage.setItem("tw_purchase_history", JSON.stringify(financeData));
+      } else {
+        const savedPurchases = localStorage.getItem("tw_purchase_history");
+        if (savedPurchases) setPurchaseHistory(JSON.parse(savedPurchases));
+      }
+    } catch (e) {
+      const savedSales = localStorage.getItem("tw_sales_history");
+      if (savedSales) setSalesHistory(JSON.parse(savedSales));
+      const savedPurchases = localStorage.getItem("tw_purchase_history");
+      if (savedPurchases) setPurchaseHistory(JSON.parse(savedPurchases));
     }
+  };
+
+  useEffect(() => {
+    loadFinancialData();
 
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
@@ -32,14 +54,31 @@ export default function KeuanganPage() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
+    // Supabase Realtime Subscription untuk sinkronisasi keuangan
+    const salesChannel = supabase
+      .channel("public:tw_sales_history_finance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_sales_history" }, () => {
+        loadFinancialData();
+      })
+      .subscribe();
+
+    const financeChannel = supabase
+      .channel("public:tw_finances_finance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_finances" }, () => {
+        loadFinancialData();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      supabase.removeChannel(salesChannel);
+      supabase.removeChannel(financeChannel);
     };
   }, []);
 
   const totalOmzet = salesHistory.reduce((sum, trx) => sum + (trx.total || 0), 0);
-  const totalModalKeluar = purchaseHistory.reduce((sum, pur) => sum + (pur.total || 0), 0);
+  const totalModalKeluar = purchaseHistory.reduce((sum, pur) => sum + (pur.amount || pur.total || 0), 0);
   const estimatedProfit = totalOmzet - totalModalKeluar;
 
   return (
@@ -64,7 +103,7 @@ export default function KeuanganPage() {
                 boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
               }}
             />
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
@@ -82,7 +121,7 @@ export default function KeuanganPage() {
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Belanja / Restock</span>
             <strong style={{ fontSize: "1.25rem", color: "#ef4444" }}>Rp {totalModalKeluar.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Dari {purchaseHistory.length} kali restock</small>
+            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Dari {purchaseHistory.length} catatan pengeluaran</small>
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -111,9 +150,9 @@ export default function KeuanganPage() {
                     <div key={idx} style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{s.id}</strong>
-                        <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{new Date(s.date).toLocaleString("id-ID")}</small>
+                        <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</small>
                       </div>
-                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#10b981" }}>+Rp {s.total?.toLocaleString("id-ID")}</span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#10b981" }}>+Rp {(s.total || 0).toLocaleString("id-ID")}</span>
                     </div>
                   ))
                 )}
@@ -130,10 +169,10 @@ export default function KeuanganPage() {
                   purchaseHistory.slice(0, 10).map((p, idx) => (
                     <div key={idx} style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{p.name}</strong>
-                        <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Qty: {p.qty} unit</small>
+                        <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{p.name || p.description || "Pengeluaran"}</strong>
+                        <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{p.qty ? `Qty: ${p.qty} unit` : (p.category || "")}</small>
                       </div>
-                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#ef4444" }}>-Rp {p.total?.toLocaleString("id-ID")}</span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#ef4444" }}>-Rp {(p.amount || p.total || 0).toLocaleString("id-ID")}</span>
                     </div>
                   ))
                 )}

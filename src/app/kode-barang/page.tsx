@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { supabase } from "@/lib/supabase";
 
 export default function KodeBarangPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -15,9 +17,28 @@ export default function KodeBarangPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
+  
+  // State tambahan untuk Scan Kamera HP
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
   const skuInputRef = useRef<HTMLInputElement>(null);
 
-  const loadProducts = () => {
+  const loadProducts = async () => {
+    try {
+      const { data, error } = await supabase.from("tw_products").select("*");
+      if (!error && data) {
+        setProducts(data);
+        localStorage.setItem("tw_products", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
+      }
+    } catch (e) {
+      fallbackLoadLocal();
+    }
+  };
+
+  const fallbackLoadLocal = () => {
     const saved = localStorage.getItem("tw_products");
     if (saved) {
       try {
@@ -43,19 +64,66 @@ export default function KodeBarangPage() {
       skuInputRef.current.focus();
     }
 
+    // Supabase Realtime Subscription untuk sinkronisasi otomatis
+    const channel = supabase
+      .channel("public:tw_products")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
+        loadProducts();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", handleStorageChange);
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+      }
+      supabase.removeChannel(channel);
     };
   }, []);
 
+  // 1. GENERATE KODE UNIK OTOMATIS
   const handleGenerateUniqueSku = () => {
     const randomCode = "TW-" + Math.floor(100000 + Math.random() * 900000);
     setSkuCode(randomCode);
+    handleSkuChange(randomCode);
     setMessage(`ℹ️ Kode SKU unik berhasil digenerate: ${randomCode}`);
     if (skuInputRef.current) {
       skuInputRef.current.focus();
+    }
+  };
+
+  // 2. AKTIFKAN / MATIKAN SCANNER KAMERA HP
+  const toggleCameraScanner = () => {
+    if (isScanning) {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(() => {});
+        scannerRef.current = null;
+      }
+      setIsScanning(false);
+    } else {
+      setIsScanning(true);
+      setTimeout(() => {
+        const scanner = new Html5QrcodeScanner(
+          "reader-kode",
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          false
+        );
+        scanner.render(
+          (decodedText) => {
+            setSkuCode(decodedText);
+            handleSkuChange(decodedText);
+            scanner.clear().catch(() => {});
+            scannerRef.current = null;
+            setIsScanning(false);
+          },
+          (error) => {
+            // Abaikan error saat frame scanning berlangsung
+          }
+        );
+        scannerRef.current = scanner;
+      }, 150);
     }
   };
 
@@ -93,7 +161,7 @@ export default function KodeBarangPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleSaveSku = (e: React.FormEvent) => {
+  const handleSaveSku = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!skuCode || !name || retailPrice === "" || wholesalePrice === "") {
       alert("Mohon lengkapi Kode SKU, Nama Barang, Harga Retail, dan Harga Grosir!");
@@ -102,38 +170,36 @@ export default function KodeBarangPage() {
 
     const cleanSku = skuCode.trim();
     const existingIndex = products.findIndex((p) => p.skuCode?.toLowerCase() === cleanSku.toLowerCase());
-    let updatedProducts = [...products];
-
     const parsedStockValue = stock === "" ? 0 : parseFloat(String(stock));
 
+    const productPayload = {
+      skuCode: cleanSku,
+      name,
+      category: category || "Sembako",
+      buyPrice: buyPrice === "" ? 0 : Number(buyPrice),
+      retailPrice: Number(retailPrice),
+      wholesalePrice: Number(wholesalePrice),
+      sellPrice: Number(retailPrice),
+      stock: parsedStockValue,
+      unit: unit || "kg",
+      isActive: true,
+      status: "active",
+    };
+
+    // Simpan ke Supabase Cloud
+    const { error } = await supabase.from("tw_products").upsert([productPayload], { onConflict: "skuCode" });
+    
+    if (error) {
+      alert("Gagal menyimpan ke Cloud Database: " + error.message);
+      return;
+    }
+
+    let updatedProducts = [...products];
     if (existingIndex >= 0) {
-      updatedProducts[existingIndex] = {
-        ...updatedProducts[existingIndex],
-        name,
-        category: category || "Sembako",
-        buyPrice: buyPrice === "" ? updatedProducts[existingIndex].buyPrice : Number(buyPrice),
-        retailPrice: Number(retailPrice),
-        wholesalePrice: Number(wholesalePrice),
-        sellPrice: Number(retailPrice),
-        stock: stock === "" ? updatedProducts[existingIndex].stock : parsedStockValue,
-        unit: unit || "kg",
-      };
+      updatedProducts[existingIndex] = { ...updatedProducts[existingIndex], ...productPayload };
       setMessage(`✓ Master SKU ${cleanSku} berhasil diperbarui!`);
     } else {
-      const newProductData = {
-        skuCode: cleanSku,
-        name,
-        category: category || "Sembako",
-        buyPrice: buyPrice === "" ? 0 : Number(buyPrice),
-        retailPrice: Number(retailPrice),
-        wholesalePrice: Number(wholesalePrice),
-        sellPrice: Number(retailPrice),
-        stock: parsedStockValue,
-        unit: unit || "kg",
-        isActive: true,
-        status: "active",
-      };
-      updatedProducts = [newProductData, ...updatedProducts];
+      updatedProducts = [productPayload, ...updatedProducts];
       setMessage(`✓ Master SKU ${cleanSku} berhasil diregistrasi!`);
     }
 
@@ -156,15 +222,21 @@ export default function KodeBarangPage() {
     }
   };
 
-  const toggleStatus = (sku: string) => {
+  const toggleStatus = async (sku: string) => {
+    const target = products.find((p) => p.skuCode === sku);
+    if (!target) return;
+
+    const nextActive = target.isActive === false ? true : false;
+    const updatedStatus = nextActive ? "active" : "inactive";
+
+    await supabase
+      .from("tw_products")
+      .update({ isActive: nextActive, status: updatedStatus })
+      .eq("skuCode", sku);
+
     const updated = products.map((p) => {
       if (p.skuCode === sku) {
-        const nextActive = p.isActive === false ? true : false;
-        return {
-          ...p,
-          isActive: nextActive,
-          status: nextActive ? "active" : "inactive",
-        };
+        return { ...p, isActive: nextActive, status: updatedStatus };
       }
       return p;
     });
@@ -187,7 +259,7 @@ export default function KodeBarangPage() {
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
@@ -206,19 +278,36 @@ export default function KodeBarangPage() {
           <form onSubmit={handleSaveSku} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
-                <label style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Scan Barcode / Kode SKU</label>
-                <button
-                  type="button"
-                  onClick={handleGenerateUniqueSku}
-                  style={{ background: "transparent", border: "none", color: "#38bdf8", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
-                >
-                  + Generate Kode Unik
-                </button>
+                <label style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Scan Barcode / QR / Kode SKU</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={handleGenerateUniqueSku}
+                    style={{ background: "transparent", border: "none", color: "#38bdf8", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                  >
+                    + Generate Kode Unik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleCameraScanner}
+                    style={{ background: isScanning ? "#ef4444" : "#10b981", border: "none", color: "#fff", fontSize: "0.7rem", cursor: "pointer", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold" }}
+                  >
+                    {isScanning ? "Tutup Kamera" : "📷 Scan Kamera"}
+                  </button>
+                </div>
               </div>
+
+              {/* CONTAINER KAMERA QR/BARCODE SCANNER */}
+              {isScanning && (
+                <div style={{ marginBottom: "10px", background: "#1e293b", padding: "8px", borderRadius: "8px", border: "1px solid #38bdf8" }}>
+                  <div id="reader-kode" style={{ width: "100%" }}></div>
+                </div>
+              )}
+
               <input
                 ref={skuInputRef}
                 type="text"
-                placeholder="Arahkan scan barcode atau klik generate..."
+                placeholder="Arahkan alat scan USB, ketik, atau scan kamera..."
                 value={skuCode}
                 onChange={(e) => handleSkuChange(e.target.value)}
                 style={{ width: "100%", padding: "7px 10px", background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", borderRadius: "8px", color: "#fff" }}
@@ -273,7 +362,7 @@ export default function KodeBarangPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal (Bisa Desimal: 0.25 - 2)</label>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal (Desimal: 0.25 - 2)</label>
                 <input
                   type="number"
                   step="any"
