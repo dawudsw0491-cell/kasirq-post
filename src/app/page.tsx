@@ -176,7 +176,7 @@ export default function DashboardPage() {
       {/* TOPBAR */}
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>DASHBOARD INTERAKTIF (SUPABASE SYNC)</strong>
+          <strong>DASHBOARD INTERAKTIF</strong>
         </div>
       </header>
 
