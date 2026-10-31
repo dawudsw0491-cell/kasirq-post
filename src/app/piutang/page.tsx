@@ -46,7 +46,11 @@ export default function PiutangPage() {
               date: sale.date || sale.created_at || new Date().toISOString(),
               status: "Belum Lunas",
             };
-            await supabase.from("tw_debts").insert([newDebt]).catch(() => {});
+            try {
+              await supabase.from("tw_debts").insert([newDebt]);
+            } catch (err) {
+              console.error("Gagal insert otomatis:", err);
+            }
             fetchedDebts.unshift(newDebt);
           }
         }
@@ -85,7 +89,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v13")
+      .channel("public:tw_debts_autosync_v14")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -146,16 +150,22 @@ export default function PiutangPage() {
     const custName = payModalData.customername || payModalData.customerName || "Pelanggan";
     const tId = payModalData.trxid || payModalData.trxId || payModalData.id;
 
-    const financeRecord = {
-      id: "INC-" + Date.now(),
-      date: new Date().toISOString(),
-      type: "Masuk",
-      category: "Pelunasan Piutang / Bon",
-      description: `Pelunasan bon dari ${custName} (Trx: ${tId})`,
-      amount: payNum,
-    };
+    try {
+      const financeRecord = {
+        id: "INC-" + Date.now(),
+        date: new Date().toISOString(),
+        type: "Masuk",
+        category: "Pelunasan Piutang / Bon",
+        description: `Pelunasan bon dari ${custName} (Trx: ${tId})`,
+        amount: payNum,
+      };
+      await supabase.from("tw_finances").insert([financeRecord]);
 
-    await supabase.from("tw_finances").insert([financeRecord]).catch(() => {});
+      const savedFin = JSON.parse(localStorage.getItem("tw_purchase_history") || "[]");
+      localStorage.setItem("tw_purchase_history", JSON.stringify([financeRecord, ...savedFin]));
+    } catch (err) {
+      console.error("Gagal catat keuangan:", err);
+    }
 
     const updatedDebts = debts.map((item) => {
       if (item.id === payModalData.id) {
@@ -172,25 +182,18 @@ export default function PiutangPage() {
     setDebts(updatedDebts);
     localStorage.setItem("kasirq_piutang", JSON.stringify(updatedDebts));
 
-    const savedFin = JSON.parse(localStorage.getItem("tw_purchase_history") || "[]");
-    localStorage.setItem("tw_purchase_history", JSON.stringify([financeRecord, ...savedFin]));
-
     window.dispatchEvent(new Event("storage"));
 
     setPayModalData(null);
     setPayAmount("");
 
-    // Set message dan arahkan pandangan ke atas agar banner langsung terlihat
     setMessage(`✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`);
     window.scrollTo({ top: 0, behavior: "smooth" });
-
-    await loadDebts();
   };
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box", position: "relative" }}>
       
-      {/* FLOATING NOTICE BANNER: Diposisikan fixed di atas agar dijamin langsung terlihat */}
       {message && (
         <div style={{
           position: "fixed",
@@ -206,7 +209,7 @@ export default function PiutangPage() {
           boxShadow: "0 10px 25px rgba(16, 185, 129, 0.4)",
           display: "flex",
           justifyContent: "space-between",
-          alignItem: "center",
+          alignItems: "center",
           border: "1px solid rgba(255,255,255,0.3)"
         }}>
           <span style={{ fontWeight: "bold" }}>{message}</span>
@@ -241,7 +244,6 @@ export default function PiutangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
-        {/* MODAL / FORM PELUNASAN */}
         {payModalData && (
           <div className="tw-card" style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -270,7 +272,6 @@ export default function PiutangPage() {
           </div>
         )}
 
-        {/* TABEL DAFTAR PIUTANG */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan ({debts.length})</h3>
 
@@ -322,37 +323,4 @@ export default function PiutangPage() {
                         <td style={{ padding: "10px" }}>
                           <div style={{ fontSize: "0.75rem", color: "#fff" }}>{dueDate.toLocaleDateString("id-ID")}</div>
                           {!isPaidOff && (
-                            <span style={{ fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px", background: isOverdue ? "rgba(239, 68, 68, 0.2)" : isDueSoon ? "rgba(245, 158, 11, 0.2)" : "rgba(56, 189, 248, 0.1)", color: isOverdue ? "#ef4444" : isDueSoon ? "#f59e0b" : "#38bdf8" }}>
-                              {isOverdue ? `Terlambat ${Math.abs(diffDays)} hari` : `${diffDays} hari lagi`}
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: "10px" }}>
-                          <span style={{ padding: "3px 8px", background: isPaidOff ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isPaidOff ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
-                            {isPaidOff ? "Terbayar" : "Belum Lunas"}
-                          </span>
-                        </td>
-                        <td style={{ padding: "10px", textAlign: "center" }}>
-                          {!isPaidOff && (
-                            <button
-                              type="button"
-                              onClick={() => setPayModalData(item)}
-                              style={{ padding: "4px 10px", background: "#10b981", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
-                            >
-                              Lunasi
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
+                            <span style={{ fontSize
