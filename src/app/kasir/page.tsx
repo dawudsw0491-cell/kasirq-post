@@ -295,6 +295,7 @@ export default function KasirPage() {
     const transactionId = "TRX-" + Date.now();
     const resolvedCustomer = customerName.trim() ? customerName.trim() : (paymentMethod === "piutang" ? "Pelanggan Bon" : "Umum / Tunai");
 
+    // Payload murni yang aman dari error schema cache database
     const transaction = {
       id: transactionId,
       date: new Date().toISOString(),
@@ -303,8 +304,7 @@ export default function KasirPage() {
       total: totalCart,
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
-      status: transactionStatus,      // Status konsisten: Tunai / Transfer / Bon
-      customerName: resolvedCustomer, // Nama pelanggan tercatat otomatis
+      status: transactionStatus, // Status konsisten: Tunai / Transfer / Bon
     };
 
     // Simpan history transaksi ke Supabase
@@ -314,8 +314,13 @@ export default function KasirPage() {
       return;
     }
 
+    // Menyimpan versi lengkap dengan nama pelanggan ke localStorage agar dashboard, penjualan, keuangan, dan piutang tetap merekam nama pelanggan
+    const transactionWithCustomer = {
+      ...transaction,
+      customerName: resolvedCustomer,
+    };
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
-    localStorage.setItem("tw_sales_history", JSON.stringify([transaction, ...savedHistory]));
+    localStorage.setItem("tw_sales_history", JSON.stringify([transactionWithCustomer, ...savedHistory]));
 
     // Jika status Bon (Piutang), catat ke modul piutang
     if (paymentMethod === "piutang") {
@@ -362,7 +367,7 @@ export default function KasirPage() {
     // Refresh data produk
     await loadProducts();
 
-    setMessage(`✓ Transaksi Berhasil! Status (${transactionStatus}) & Pelanggan (${resolvedCustomer}) tercatat otomatis.`);
+    setMessage(`✓ Transaksi Berhasil! Status (${transactionStatus}) & Pelanggan (${resolvedCustomer}) tercatat.`);
     setCart([]);
     setPayAmount("");
     setCustomerName("");
@@ -511,7 +516,7 @@ export default function KasirPage() {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Metode Pembayaran / Status</label>
+              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Metode Pembayaran</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
@@ -527,8 +532,8 @@ export default function KasirPage() {
                 }}
               >
                 <option value="cash" style={{ background: "#090d16" }}>💵 Tunai</option>
-                <option value="transfer" style={{ background: "#090d16" }}>💳 Transfer</option>
                 <option value="piutang" style={{ background: "#090d16" }}>📝 Bon (Piutang)</option>
+                <option value="transfer" style={{ background: "#090d16" }}>💳 Transfer</option>
               </select>
             </div>
 
