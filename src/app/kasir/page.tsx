@@ -285,13 +285,12 @@ export default function KasirPage() {
     }
 
     const transactionId = "TRX-" + Date.now();
-   const transaction = {
+    const transaction = {
       id: transactionId,
       date: new Date().toISOString(),
       created_at: new Date().toISOString(),
       items: cart,
       total: totalCart,
-      total_amount: totalCart, // Pertahankan jika tabel Supabase Anda menggunakan total_amount
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
       status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
