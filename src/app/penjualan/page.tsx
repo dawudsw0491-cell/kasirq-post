@@ -50,11 +50,17 @@ export default function PenjualanPage() {
 
   const processAndSetSales = (parsed: any[]) => {
     const normalized = parsed.map((s: any) => {
-      const method = s.paymentMethod || s.paymentType || "tunai";
-      const isBon = method === "bon" || method === "piutang" || (s.pay === 0 && s.customerName && s.customerName !== "Umum");
+      const statusText = (s.status || "").toLowerCase();
+      const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
+      const isTransfer = statusText.includes("transfer");
+
+      let resolvedMethod = "tunai";
+      if (isBon) resolvedMethod = "bon";
+      else if (isTransfer) resolvedMethod = "transfer";
+
       return {
         ...s,
-        paymentMethod: isBon ? "bon" : "tunai"
+        paymentMethod: resolvedMethod
       };
     });
     setSales(normalized);
@@ -99,9 +105,9 @@ export default function PenjualanPage() {
     };
   }, []);
 
-  // Hitung Rekapitulasi Total Tunai vs Bon berdasarkan paymentMethod
+  // Hitung Rekapitulasi Berdasarkan paymentMethod
   const totalCashSales = sales
-    .filter((s) => s.paymentMethod === "tunai")
+    .filter((s) => s.paymentMethod === "tunai" || s.paymentMethod === "transfer")
     .reduce((sum, s) => sum + (s.total || 0), 0);
 
   const totalBonSales = sales
@@ -115,12 +121,12 @@ export default function PenjualanPage() {
     text += `----------------------------------------\n`;
     text += `No. Invoice : ${sale.id}\n`;
     text += `Tanggal     : ${new Date(sale.date).toLocaleString("id-ID")}\n`;
-    text += `Status Nota : ${isBon ? "BON / PIUTANG PELANGGAN" : "TUNAI (CASH)"}\n`;
-    if (isBon && sale.customerName) {
+    text += `Status Nota : ${isBon ? "BON / PIUTANG PELANGGAN" : "LUNAS (TUNAI/TRANSFER)"}\n`;
+    if (sale.customerName) {
       text += `Pelanggan   : ${sale.customerName}\n`;
     }
     text += `----------------------------------------\n`;
-    text += `*RILIS ITEM BELANJA:*\n`;
+    text += `*RILIS ITEM BELANja:*\n`;
     
     sale.items?.forEach((it: any) => {
       text += `• ${it.name} (${it.qty}x @Rp ${(it.sellPrice || 0).toLocaleString("id-ID")}) = Rp ${(it.qty * it.sellPrice).toLocaleString("id-ID")}\n`;
@@ -129,7 +135,7 @@ export default function PenjualanPage() {
     text += `----------------------------------------\n`;
     text += `*TOTAL TAGIHAN : Rp ${(sale.total || 0).toLocaleString("id-ID")}*\n`;
     if (!isBon) {
-      text += `Tunai Dibayar : Rp ${(sale.pay || 0).toLocaleString("id-ID")}\n`;
+      text += `Pembayaran  : Rp ${(sale.pay || 0).toLocaleString("id-ID")}\n`;
       text += `Kembalian   : Rp ${(sale.change || 0).toLocaleString("id-ID")}\n`;
     } else {
       text += `Keterangan  : Masuk Catatan Piutang Toko\n`;
@@ -146,7 +152,7 @@ export default function PenjualanPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-        <strong>PENJUALAN &amp; STATUS NOTA</strong>
+          <strong>PENJUALAN &amp; STATUS NOTA</strong>
         </div>
         <div className="tw-topbar-right">
           <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
@@ -160,7 +166,7 @@ export default function PenjualanPage() {
         {/* KARTU REKAPITULASI TUNAI VS BON */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #10b981" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Tunai (Cash)</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Tunai / Transfer</span>
             <strong style={{ fontSize: "1.4rem", color: "#10b981" }}>Rp {totalCashSales.toLocaleString("id-ID")}</strong>
             <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Masuk langsung ke kas kasir</span>
           </div>
@@ -205,6 +211,8 @@ export default function PenjualanPage() {
                 ) : (
                   sales.map((sale, idx) => {
                     const isBon = sale.paymentMethod === "bon";
+                    const isTransfer = sale.paymentMethod === "transfer";
+                    
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "10px", verticalAlign: "top" }}>
@@ -222,21 +230,21 @@ export default function PenjualanPage() {
                           </div>
                         </td>
 
-                        {/* STATUS NOTA VISUAL DARI PAYMENTMETHOD */}
+                        {/* STATUS NOTA VISUAL */}
                         <td style={{ padding: "10px", verticalAlign: "top" }}>
                           <span style={{ 
                             padding: "4px 10px", 
                             borderRadius: "6px", 
                             fontSize: "0.75rem", 
                             fontWeight: "900",
-                            background: isBon ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)", 
-                            color: isBon ? "#ef4444" : "#10b981",
-                            border: isBon ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)",
+                            background: isBon ? "rgba(239, 68, 68, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
+                            color: isBon ? "#ef4444" : isTransfer ? "#38bdf8" : "#10b981",
+                            border: isBon ? "1px solid rgba(239, 68, 68, 0.4)" : isTransfer ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)",
                             display: "inline-block"
                           }}>
-                            {isBon ? "🔴 NOTA: BON / PIUTANG" : "🟢 NOTA: TUNAI"}
+                            {isBon ? "🔴 NOTA: BON / PIUTANG" : isTransfer ? "🔵 NOTA: TRANSFER" : "🟢 NOTA: TUNAI"}
                           </span>
-                          {isBon && sale.customerName && (
+                          {sale.customerName && (
                             <div style={{ fontSize: "0.75rem", color: "#38bdf8", marginTop: "6px", fontWeight: "bold" }}>
                               Pelanggan: {sale.customerName}
                             </div>
@@ -284,19 +292,17 @@ export default function PenjualanPage() {
 
       </div>
 
-      {/* MODAL PRATINJAU STRUK WARNA PUTIH & STATUS NOTA TERINTEGRASI */}
+      {/* MODAL PRATINJAU STRUK */}
       {selectedSale && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
           <div style={{ background: "#ffffff", color: "#1e293b", border: "1px solid #cbd5e1", borderRadius: "12px", width: "100%", maxWidth: "400px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 15px 35px rgba(0,0,0,0.5)" }}>
             
-            {/* HEADER STRUK */}
             <div style={{ textAlign: "center", borderBottom: "2px dashed #cbd5e1", paddingBottom: "12px" }}>
               <h2 style={{ fontSize: "1.3rem", fontWeight: "900", color: "#0f172a", margin: "0 0 4px 0" }}>{storeInfo.name.toUpperCase()}</h2>
               <p style={{ fontSize: "0.78rem", fontWeight: "600", color: "#475569", margin: 0 }}>{storeInfo.address}</p>
               <p style={{ fontSize: "0.78rem", fontWeight: "600", color: "#475569", margin: "2px 0 0 0" }}>Telp: {storeInfo.phone}</p>
             </div>
 
-            {/* DETAIL TRANSAKSI & STATUS NOTA VISUAL */}
             <div style={{ fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "6px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: "600", color: "#64748b" }}>No. Invoice:</span>
@@ -316,10 +322,10 @@ export default function PenjualanPage() {
                   background: selectedSale.paymentMethod === "bon" ? "#fee2e2" : "#d1fae5", 
                   color: selectedSale.paymentMethod === "bon" ? "#dc2626" : "#059669" 
                 }}>
-                  {selectedSale.paymentMethod === "bon" ? "STATUS: BON / PIUTANG" : "STATUS: TUNAI"}
+                  {selectedSale.paymentMethod === "bon" ? "STATUS: BON / PIUTANG" : "STATUS: LUNAS"}
                 </span>
               </div>
-              {selectedSale.paymentMethod === "bon" && selectedSale.customerName && (
+              {selectedSale.customerName && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontWeight: "600", color: "#64748b" }}>Nama Pelanggan:</span>
                   <strong style={{ color: "#2563eb" }}>{selectedSale.customerName}</strong>
@@ -327,7 +333,6 @@ export default function PenjualanPage() {
               )}
             </div>
 
-            {/* DAFTAR ITEM BELANJA */}
             <div style={{ borderBottom: "2px dashed #cbd5e1", paddingBottom: "10px", maxHeight: "180px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
               {selectedSale.items?.map((it: any, i: number) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
@@ -342,16 +347,15 @@ export default function PenjualanPage() {
               ))}
             </div>
 
-            {/* TOTAL & PEMBAYARAN */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.85rem", background: "#f8fafc", padding: "10px", borderRadius: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "900" }}>
                 <span style={{ color: "#0f172a" }}>TOTAL BELANJA:</span>
                 <span style={{ color: "#d97706", fontSize: "1.1rem" }}>Rp {(selectedSale.total || 0).toLocaleString("id-ID")}</span>
               </div>
-              {selectedSale.paymentMethod === "tunai" ? (
+              {selectedSale.paymentMethod !== "bon" ? (
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", color: "#475569", fontWeight: "700", fontSize: "0.8rem" }}>
-                    <span>Tunai Dibayar:</span>
+                    <span>Bayar:</span>
                     <span>Rp {(selectedSale.pay || 0).toLocaleString("id-ID")}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", color: "#059669", fontWeight: "900", fontSize: "0.8rem" }}>
@@ -366,12 +370,10 @@ export default function PenjualanPage() {
               )}
             </div>
 
-            {/* FOOTER STRUK */}
             <div style={{ textAlign: "center", borderTop: "2px dashed #cbd5e1", paddingTop: "10px" }}>
               <p style={{ fontSize: "0.8rem", fontWeight: "800", color: "#0f172a", margin: 0 }}>{storeInfo.footer}</p>
             </div>
 
-            {/* TOMBOL AKSI MODAL */}
             <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
               <button
                 onClick={() => handleShareWhatsApp(selectedSale)}

@@ -10,7 +10,6 @@ export default function KeuanganPage() {
 
   const loadFinancialData = async () => {
     try {
-      // Ambil data penjualan dari Supabase (tabel tw_sales_history)
       const { data: salesData, error: salesError } = await supabase
         .from("tw_sales_history")
         .select("*")
@@ -24,7 +23,6 @@ export default function KeuanganPage() {
         if (savedSales) setSalesHistory(JSON.parse(savedSales));
       }
 
-      // Ambil data keuangan/pengeluaran dari Supabase (tabel tw_finances) atau fallback local
       const { data: financeData, error: financeError } = await supabase
         .from("tw_finances")
         .select("*")
@@ -54,7 +52,6 @@ export default function KeuanganPage() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Supabase Realtime Subscription untuk sinkronisasi keuangan
     const salesChannel = supabase
       .channel("public:tw_sales_history_finance")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_sales_history" }, () => {
@@ -77,7 +74,13 @@ export default function KeuanganPage() {
     };
   }, []);
 
-  const totalOmzet = salesHistory.reduce((sum, trx) => sum + (trx.total || 0), 0);
+  // Hanya menghitung transaksi Tunai / Transfer sebagai Omset Kas Masuk (Bon dikecualikan karena masuk Piutang)
+  const cashSalesOnly = salesHistory.filter((s: any) => {
+    const statusText = (s.status || "").toLowerCase();
+    return !statusText.includes("bon") && !statusText.includes("piutang") && !statusText.includes("unpaid");
+  });
+
+  const totalOmzet = cashSalesOnly.reduce((sum, trx) => sum + (trx.total || 0), 0);
   const totalModalKeluar = purchaseHistory.reduce((sum, pur) => sum + (pur.amount || pur.total || 0), 0);
   const estimatedProfit = totalOmzet - totalModalKeluar;
 
@@ -113,9 +116,9 @@ export default function KeuanganPage() {
         {/* KARTU RINGKASAN KEUANGAN */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Omzet Penjualan</span>
+            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Kas Masuk (Tunai/Transfer)</span>
             <strong style={{ fontSize: "1.25rem", color: "#10b981" }}>Rp {totalOmzet.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Dari {salesHistory.length} transaksi selesai</small>
+            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Dari {cashSalesOnly.length} transaksi lunas</small>
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -125,9 +128,9 @@ export default function KeuanganPage() {
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Estimasi Selisih / Kas</span>
+            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Estimasi Selisih / Kas Bersih</span>
             <strong style={{ fontSize: "1.25rem", color: "#38bdf8" }}>Rp {estimatedProfit.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Perhitungan bersih otomatis</small>
+            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Kas Masuk dikurangi Pengeluaran</small>
           </div>
         </div>
 
@@ -139,14 +142,14 @@ export default function KeuanganPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             
-            {/* Kolom Pemasukan */}
+            {/* Kolom Pemasukan Kas */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h4 style={{ fontSize: "0.9rem", color: "#10b981", margin: 0 }}>Pemasukan Terbaru ({salesHistory.length})</h4>
+              <h4 style={{ fontSize: "0.9rem", color: "#10b981", margin: 0 }}>Pemasukan Kas Terbaru ({cashSalesOnly.length})</h4>
               <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-                {salesHistory.length === 0 ? (
-                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Belum ada data pemasukan.</span>
+                {cashSalesOnly.length === 0 ? (
+                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Belum ada data pemasukan kas lunas.</span>
                 ) : (
-                  salesHistory.slice(0, 10).map((s, idx) => (
+                  cashSalesOnly.slice(0, 10).map((s, idx) => (
                     <div key={idx} style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{s.id}</strong>
