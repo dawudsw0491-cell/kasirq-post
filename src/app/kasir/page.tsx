@@ -293,6 +293,7 @@ export default function KasirPage() {
       total: totalCart,
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
+      payment_method: paymentMethod, // Membedakan cash, piutang, dan transfer di database/dashboard/keuangan
       status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
     };
 
