@@ -9,6 +9,10 @@ export default function KeuanganPage() {
   const [isOnline, setIsOnline] = useState(true);
 
   const loadFinancialData = async () => {
+    let loadedSales: any[] = [];
+    let loadedPurchases: any[] = [];
+
+    // 1. Ambil data penjualan dari Supabase / localStorage
     try {
       const { data: salesData, error: salesError } = await supabase
         .from("tw_sales_history")
@@ -16,31 +20,38 @@ export default function KeuanganPage() {
         .order("created_at", { ascending: false });
 
       if (!salesError && salesData) {
-        setSalesHistory(salesData);
+        loadedSales = salesData;
         localStorage.setItem("tw_sales_history", JSON.stringify(salesData));
       } else {
         const savedSales = localStorage.getItem("tw_sales_history");
-        if (savedSales) setSalesHistory(JSON.parse(savedSales));
+        if (savedSales) loadedSales = JSON.parse(savedSales);
       }
+    } catch (e) {
+      const savedSales = localStorage.getItem("tw_sales_history");
+      if (savedSales) loadedSales = JSON.parse(savedSales);
+    }
 
+    // 2. Ambil data pengeluaran/restock dari Supabase / localStorage (Aman jika tabel tw_finances belum ada)
+    try {
       const { data: financeData, error: financeError } = await supabase
         .from("tw_finances")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (!financeError && financeData) {
-        setPurchaseHistory(financeData);
+        loadedPurchases = financeData;
         localStorage.setItem("tw_purchase_history", JSON.stringify(financeData));
       } else {
         const savedPurchases = localStorage.getItem("tw_purchase_history");
-        if (savedPurchases) setPurchaseHistory(JSON.parse(savedPurchases));
+        if (savedPurchases) loadedPurchases = JSON.parse(savedPurchases);
       }
     } catch (e) {
-      const savedSales = localStorage.getItem("tw_sales_history");
-      if (savedSales) setSalesHistory(JSON.parse(savedSales));
       const savedPurchases = localStorage.getItem("tw_purchase_history");
-      if (savedPurchases) setPurchaseHistory(JSON.parse(savedPurchases));
+      if (savedPurchases) loadedPurchases = JSON.parse(savedPurchases);
     }
+
+    setSalesHistory(loadedSales);
+    setPurchaseHistory(loadedPurchases);
   };
 
   useEffect(() => {
@@ -59,22 +70,14 @@ export default function KeuanganPage() {
       })
       .subscribe();
 
-    const financeChannel = supabase
-      .channel("public:tw_finances_finance")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tw_finances" }, () => {
-        loadFinancialData();
-      })
-      .subscribe();
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       supabase.removeChannel(salesChannel);
-      supabase.removeChannel(financeChannel);
     };
   }, []);
 
-  // Hanya menghitung transaksi Tunai / Transfer sebagai Omset Kas Masuk (Bon dikecualikan karena masuk Piutang)
+  // Hanya menghitung transaksi Tunai / Transfer sebagai Kas Masuk (Bon/Piutang dikecualikan)
   const cashSalesOnly = salesHistory.filter((s: any) => {
     const statusText = (s.status || "").toLowerCase();
     return !statusText.includes("bon") && !statusText.includes("piutang") && !statusText.includes("unpaid");
