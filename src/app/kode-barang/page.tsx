@@ -118,9 +118,7 @@ export default function KodeBarangPage() {
             scannerRef.current = null;
             setIsScanning(false);
           },
-          (error) => {
-            // Abaikan error saat frame scanning berlangsung
-          }
+          (error) => {}
         );
         scannerRef.current = scanner;
       }, 150);
@@ -129,7 +127,7 @@ export default function KodeBarangPage() {
 
   const handleSkuChange = (val: string) => {
     setSkuCode(val);
-    const found = products.find((p) => p.skuCode?.toLowerCase() === val.trim().toLowerCase());
+    const found = products.find((p) => (p.skuCode || p.skucode)?.toLowerCase() === val.trim().toLowerCase());
     if (found) {
       setName(found.name || "");
       setCategory(found.category || "Sembako");
@@ -172,7 +170,6 @@ export default function KodeBarangPage() {
     const existingIndex = products.findIndex((p) => (p.skuCode || p.skucode)?.toLowerCase() === cleanSku.toLowerCase());
     const parsedStockValue = stock === "" ? 0 : parseFloat(String(stock));
 
-    // Payload murni hanya kolom yang ada di database tabel tw_products (tanpa isActive/status)
     const productPayload = {
       skuCode: cleanSku,
       name,
@@ -184,7 +181,6 @@ export default function KodeBarangPage() {
       unit: unit || "kg",
     };
 
-    // Simpan ke Supabase Cloud
     const { error } = await supabase.from("tw_products").upsert([productPayload], { onConflict: "skuCode" });
     
     if (error) {
@@ -220,18 +216,31 @@ export default function KodeBarangPage() {
     }
   };
 
-  const toggleStatus = async (sku: string) => {
-    // Pengelolaan status lokal karena kolom status tidak ada di tabel database
-    const updated = products.map((p) => {
-      if ((p.skuCode || p.skucode) === sku) {
-        const currentActive = p.localActive !== false;
-        return { ...p, localActive: !currentActive };
-      }
-      return p;
-    });
+  // 3. FUNGSI HAPUS PRODUK TERINTEGRASI SUPABASE & LOCALSTORAGE
+  const handleDeleteProduct = async (sku: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus produk dengan SKU "${sku}" secara permanen?`)) {
+      return;
+    }
+
+    // Hapus dari database Supabase berdasarkan skuCode
+    const { error } = await supabase
+      .from("tw_products")
+      .delete()
+      .eq("skuCode", sku);
+
+    if (error) {
+      alert("Gagal menghapus produk dari Cloud: " + error.message);
+      return;
+    }
+
+    // Perbarui state lokal dan localStorage
+    const updated = products.filter((p) => (p.skuCode || p.skucode) !== sku);
     setProducts(updated);
     localStorage.setItem("tw_products", JSON.stringify(updated));
     window.dispatchEvent(new Event("storage"));
+
+    setMessage(`🗑️ Produk SKU ${sku} berhasil dihapus permanen!`);
+    setTimeout(() => setMessage(""), 4000);
   };
 
   const filteredProducts = products.filter(
@@ -286,7 +295,6 @@ export default function KodeBarangPage() {
                 </div>
               </div>
 
-              {/* CONTAINER KAMERA QR/BARCODE SCANNER */}
               {isScanning && (
                 <div style={{ marginBottom: "10px", background: "#1e293b", padding: "8px", borderRadius: "8px", border: "1px solid #38bdf8" }}>
                   <div id="reader-kode" style={{ width: "100%" }}></div>
@@ -424,14 +432,13 @@ export default function KodeBarangPage() {
                   <th style={{ padding: "10px" }}>Stok / Satuan</th>
                   <th style={{ padding: "10px" }}>Retail</th>
                   <th style={{ padding: "10px" }}>Grosir</th>
-                  <th style={{ padding: "10px" }}>Status</th>
                   <th style={{ padding: "10px", textAlign: "center" }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
+                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
                       Belum ada master SKU terdaftar.
                     </td>
                   </tr>
@@ -440,7 +447,6 @@ export default function KodeBarangPage() {
                     const codeVal = p.skuCode || p.skucode;
                     const retailVal = p.retailPrice !== undefined ? p.retailPrice : p.retailprice;
                     const wholesaleVal = p.wholesalePrice !== undefined ? p.wholesalePrice : p.wholesaleprice;
-                    const isRowActive = p.localActive !== false;
 
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
@@ -452,11 +458,6 @@ export default function KodeBarangPage() {
                         </td>
                         <td style={{ padding: "10px", color: "#10b981" }}>Rp {(retailVal || 0).toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(wholesaleVal || 0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px" }}>
-                          <span style={{ padding: "3px 8px", background: isRowActive ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isRowActive ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
-                            {isRowActive ? "Aktif" : "Non-Aktif"}
-                          </span>
-                        </td>
                         <td style={{ padding: "10px", textAlign: "center", display: "flex", justifyContent: "center", gap: "6px" }}>
                           <button
                             onClick={() => handleEditRow(p)}
@@ -465,10 +466,10 @@ export default function KodeBarangPage() {
                             Edit
                           </button>
                           <button
-                            onClick={() => toggleStatus(codeVal)}
-                            style={{ padding: "4px 8px", background: isRowActive ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", color: isRowActive ? "#ef4444" : "#10b981", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                            onClick={() => handleDeleteProduct(codeVal)}
+                            style={{ padding: "4px 8px", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
                           >
-                            {isRowActive ? "Non-Aktifkan" : "Aktifkan"}
+                            Hapus
                           </button>
                         </td>
                       </tr>
