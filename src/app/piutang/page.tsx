@@ -85,7 +85,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v12")
+      .channel("public:tw_debts_autosync_v13")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -157,7 +157,6 @@ export default function PiutangPage() {
 
     await supabase.from("tw_finances").insert([financeRecord]).catch(() => {});
 
-    // Update state lokal secara langsung
     const updatedDebts = debts.map((item) => {
       if (item.id === payModalData.id) {
         return {
@@ -178,20 +177,43 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    // Tutup modal form dan reset input
     setPayModalData(null);
     setPayAmount("");
 
-    // Set pesan notice dan pastikan layar discroll ke atas agar langsung terlihat
+    // Set message dan arahkan pandangan ke atas agar banner langsung terlihat
     setMessage(`✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Panggil loadDebts secara asinkron tanpa menimpa pesan notice
     await loadDebts();
   };
 
   return (
-    <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
+    <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box", position: "relative" }}>
+      
+      {/* FLOATING NOTICE BANNER: Diposisikan fixed di atas agar dijamin langsung terlihat */}
+      {message && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          left: "20px",
+          zIndex: 9999,
+          padding: "14px 20px",
+          background: "#10b981",
+          color: "#ffffff",
+          borderRadius: "10px",
+          fontSize: "0.9rem",
+          boxShadow: "0 10px 25px rgba(16, 185, 129, 0.4)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItem: "center",
+          border: "1px solid rgba(255,255,255,0.3)"
+        }}>
+          <span style={{ fontWeight: "bold" }}>{message}</span>
+          <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>✕</button>
+        </div>
+      )}
+
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
           <strong>MANAJEMEN PIUTANG &amp; PELUNASAN</strong>
@@ -218,14 +240,6 @@ export default function PiutangPage() {
       </header>
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        
-        {/* BANNER NOTICE: Berada di paling atas kontainer */}
-        {message && (
-          <div style={{ padding: "12px 16px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>{message}</span>
-            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#10b981", cursor: "pointer", fontWeight: "bold" }}>✕</button>
-          </div>
-        )}
 
         {/* MODAL / FORM PELUNASAN */}
         {payModalData && (
