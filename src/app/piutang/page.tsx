@@ -82,7 +82,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v6")
+      .channel("public:tw_debts_autosync_v7")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -173,13 +173,19 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    // Notifikasi instan via alert agar user mendapatkan kepastian aksi tombol nyata
-    const successMsg = `✓ BERHASIL! Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} telah disimpan. Status: ${newStatus}. Masuk Laporan Keuangan.`;
-    alert(successMsg);
-    setMessage(successMsg);
-
+    // Tutup modal terlebih dahulu agar tidak menumpuk
     setPayModalData(null);
     setPayAmount("");
+
+    // Set notice sukses yang jelas dan tampil di bagian atas halaman
+    const successText = `✓ Berhasil! Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} telah disimpan. Status: ${newStatus}.`;
+    setMessage(successText);
+
+    // Auto-hide setelah 6 detik (atau bisa ditutup manual)
+    setTimeout(() => {
+      setMessage("");
+    }, 6000);
+
     loadDebts();
   };
 
@@ -198,11 +204,11 @@ export default function PiutangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
-        {/* BANNER NOTICE PERMANEN HINGGA DITUTUP */}
+        {/* NOTICE / BANNER NOTIFIKASI SUKSES (PERSIS SEPERTI DI KASIR) */}
         {message && (
-          <div style={{ padding: "14px 18px", background: "rgba(16, 185, 129, 0.2)", color: "#34d399", borderRadius: "10px", fontSize: "0.9rem", border: "1px solid rgba(16, 185, 129, 0.5)", fontWeight: "bold", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ padding: "14px 18px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "10px", fontSize: "0.9rem", border: "1px solid rgba(16, 185, 129, 0.4)", fontWeight: "bold", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>{message}</span>
-            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#34d399", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold", marginLeft: "10px" }}>✕</button>
+            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#10b981", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>✕</button>
           </div>
         )}
 
