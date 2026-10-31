@@ -338,40 +338,42 @@ export default function PengaturanPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>PENGATURAN APLIKASI &amp; IDENTITAS TOKO</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>PENGATURAN APLIKASI &amp; IDENTITAS TOKO</span>
         </div>
         
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
             className="tw-live-badge"
             style={{
-              backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-              color: isOnline ? "#10b981" : "#ef4444",
-              borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
             }}
           >
             <span
               className="tw-status-dot"
               style={{
-                backgroundColor: isOnline ? "#10b981" : "#ef4444",
-                boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
               }}
             />
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
 
-      <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", padding: "20px" }}>
+      <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", padding: "24px" }}>
         
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
           {/* PANEL FORM PENGATURAN & IDENTITAS TOKO */}
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 className="tw-card-title">Pengaturan Aplikasi &amp; Identitas Toko</h3>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Pengaturan Aplikasi &amp; Identitas Toko</h3>
 
             {message && (
-              <div style={{ padding: "10px", background: "rgba(16, 185, 129, 0.15)", color: "#38bdf8", borderRadius: "8px", fontSize: "0.85rem" }}>
+              <div style={{ padding: "12px", background: "#D1FAE5", color: "#065F46", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "600", border: "1px solid #A7F3D0" }}>
                 ✓ {message}
               </div>
             )}
@@ -379,51 +381,51 @@ export default function PengaturanPage() {
             <form onSubmit={handleSaveSettings} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Aplikasi</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Nama Aplikasi</label>
                   <input
                     type="text"
                     value={appName}
                     onChange={(e) => setAppName(e.target.value)}
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Toko / Brand</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Nama Toko / Brand</label>
                   <input
                     type="text"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Alamat Lengkap Toko</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Alamat Lengkap Toko</label>
                 <textarea
                   value={storeAddress}
                   onChange={(e) => setStoreAddress(e.target.value)}
                   rows={2}
-                  style={{ width: "100%", resize: "none" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500", resize: "none" }}
                 />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>No. Telepon Toko</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>No. Telepon Toko</label>
                   <input
                     type="text"
                     value={storePhone}
                     onChange={(e) => setStorePhone(e.target.value)}
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Ukuran Struk Thermal</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Ukuran Struk Thermal</label>
                   <select
                     value={thermalSize}
                     onChange={(e) => setThermalSize(e.target.value)}
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                   >
                     <option value="80 mm (Standar POS)">80 mm (Standar POS)</option>
                     <option value="58 mm (Mini Thermal)">58 mm (Mini Thermal)</option>
@@ -432,34 +434,34 @@ export default function PengaturanPage() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "6px", fontWeight: "bold" }}>Cetak Struk (Header &amp; Footer)</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "6px", fontWeight: "600" }}>Cetak Struk (Header &amp; Footer)</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div>
-                    <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)", display: "block", marginBottom: "2px" }}>Header Struk</span>
+                    <span style={{ fontSize: "0.75rem", color: "#64748B", display: "block", marginBottom: "2px", fontWeight: "500" }}>Header Struk</span>
                     <input
                       type="text"
                       value={headerReceipt}
                       onChange={(e) => setHeaderReceipt(e.target.value)}
-                      style={{ width: "100%" }}
+                      style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                     />
                   </div>
                   <div>
-                    <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)", display: "block", marginBottom: "2px" }}>Footer Struk</span>
+                    <span style={{ fontSize: "0.75rem", color: "#64748B", display: "block", marginBottom: "2px", fontWeight: "500" }}>Footer Struk</span>
                     <input
                       type="text"
                       value={footerReceipt}
                       onChange={(e) => setFooterReceipt(e.target.value)}
-                      style={{ width: "100%" }}
+                      style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "6px", fontWeight: "bold" }}>Pengaturan Pajak (PPN &amp; PPh)</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", background: "rgba(255,255,255,0.02)", padding: "12px", borderRadius: "8px", border: "1px solid var(--tw-border)" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "6px", fontWeight: "600" }}>Pengaturan Pajak (PPN &amp; PPh)</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", background: "#F8FAFC", padding: "12px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", cursor: "pointer", color: "#0F172A", fontWeight: "500" }}>
                       <input
                         type="checkbox"
                         checked={ppnActive}
@@ -473,14 +475,14 @@ export default function PengaturanPage() {
                         type="number"
                         value={ppnValue}
                         onChange={(e) => setPpnValue(Number(e.target.value))}
-                        style={{ width: "60px", padding: "4px 8px", textAlign: "center" }}
+                        style={{ width: "60px", padding: "4px 8px", textAlign: "center", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "6px", color: "#0F172A", fontWeight: "600" }}
                       />
-                      <span style={{ fontSize: "0.85rem" }}>%</span>
+                      <span style={{ fontSize: "0.85rem", color: "#334155", fontWeight: "600" }}>%</span>
                     </div>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", cursor: "pointer", color: "#0F172A", fontWeight: "500" }}>
                       <input
                         type="checkbox"
                         checked={pphActive}
@@ -493,17 +495,17 @@ export default function PengaturanPage() {
                 </div>
               </div>
 
-              <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "12px", fontWeight: "bold", marginTop: "8px" }}>
+              <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "12px", fontWeight: "600", marginTop: "8px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.9rem" }}>
                 Simpan Perubahan Pengaturan
               </button>
             </form>
           </div>
 
           {/* PANEL KARTU MANAGEMENT TOGGLE MODUL / FITUR */}
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
             <div>
-              <h3 className="tw-card-title" style={{ margin: 0 }}>Pengaturan Fitur &amp; Modul KasirQ</h3>
-              <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>
+              <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Pengaturan Fitur &amp; Modul KasirQ</h3>
+              <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>
                 Aktifkan atau nonaktifkan modul yang tidak digunakan agar tampilan navigasi sidebar lebih ringkas.
               </span>
             </div>
@@ -516,19 +518,19 @@ export default function PengaturanPage() {
                     key={item.key}
                     style={{
                       display: "flex",
-                      justifyContent: "space-between",
+                      justify: "space-between",
                       alignItems: "center",
                       padding: "12px",
-                      background: "rgba(255,255,255,0.02)",
-                      border: "1px solid var(--tw-border)",
+                      background: "#F8FAFC",
+                      border: "1px solid #E2E8F0",
                       borderRadius: "10px",
                     }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontWeight: "bold", fontSize: "0.85rem", color: isEnabled ? "#fff" : "var(--tw-muted)" }}>
+                      <span style={{ fontWeight: "600", fontSize: "0.85rem", color: isEnabled ? "#0F172A" : "#64748B" }}>
                         {item.title}
                       </span>
-                      <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>{item.desc}</span>
+                      <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>{item.desc}</span>
                     </div>
 
                     <button
@@ -537,13 +539,13 @@ export default function PengaturanPage() {
                       style={{
                         padding: "6px 14px",
                         borderRadius: "8px",
-                        border: "none",
-                        fontWeight: "bold",
+                        border: isEnabled ? "1px solid #A7F3D0" : "1px solid #FCA5A5",
+                        fontWeight: "600",
                         fontSize: "0.75rem",
                         cursor: "pointer",
                         transition: "all 0.2s ease",
-                        background: isEnabled ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
-                        color: isEnabled ? "#10b981" : "#ef4444",
+                        background: isEnabled ? "#D1FAE5" : "#FEE2E2",
+                        color: isEnabled ? "#065F46" : "#991B1B",
                       }}
                     >
                       {isEnabled ? "Aktif" : "Non-Aktif"}
@@ -559,39 +561,40 @@ export default function PengaturanPage() {
         {/* KOLOM KANAN: BACKUP & FULL RESET */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           
-          <div className="tw-card">
-            <h3 className="tw-card-title" style={{ fontSize: "1rem", marginBottom: "6px" }}>Backup All Data &amp; Export Excel</h3>
-            <p style={{ fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "16px" }}>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#0F172A", fontWeight: "600", marginBottom: "6px" }}>Backup All Data &amp; Export Excel</h3>
+            <p style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "500", marginBottom: "16px" }}>
               Unduh database toko Anda dalam berkas spreadsheet multi-sheet terinterkoneksi formula.
             </p>
             <button
               onClick={handleExportExcel}
               style={{
                 width: "100%",
-                background: "#10b981",
+                background: "#059669",
                 color: "#ffffff",
                 padding: "12px",
                 borderRadius: "8px",
                 border: "none",
-                fontWeight: "bold",
+                fontWeight: "600",
+                fontSize: "0.85rem",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "8px",
-                boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                boxShadow: "0 4px 12px rgba(5, 150, 105, 0.2)",
               }}
             >
               <span>📊</span> Download Full Database Backup (.xlsx)
             </button>
           </div>
 
-          <div className="tw-card" style={{ border: "1px solid rgba(239, 68, 68, 0.4)", background: "rgba(239, 68, 68, 0.03)" }}>
+          <div className="tw-card" style={{ border: "1px solid #FCA5A5", background: "#FEF2F2", borderRadius: "12px", padding: "18px", boxShadow: "0 4px 12px rgba(220, 38, 38, 0.05)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
               <span>⚠️</span>
-              <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#ef4444" }}>Full Reset (Mulai dari 0)</h3>
+              <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#991B1B", fontWeight: "600", margin: 0 }}>Full Reset (Mulai dari 0)</h3>
             </div>
-            <p style={{ fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "16px" }}>
+            <p style={{ fontSize: "0.8rem", color: "#7F1D1D", fontWeight: "500", marginBottom: "16px" }}>
               Hapus seluruh data omset, transaksi, keuangan, piutang, hutang, stok barang di Supabase Cloud &amp; Local Storage untuk memulai dari awal.
             </p>
             <button
@@ -599,18 +602,19 @@ export default function PengaturanPage() {
               disabled={loadingReset}
               style={{
                 width: "100%",
-                background: "#ef4444",
+                background: "#DC2626",
                 color: "#ffffff",
                 padding: "12px",
                 borderRadius: "8px",
                 border: "none",
-                fontWeight: "bold",
+                fontWeight: "600",
+                fontSize: "0.85rem",
                 cursor: loadingReset ? "wait" : "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "8px",
-                boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+                boxShadow: "0 4px 12px rgba(220, 38, 38, 0.2)",
               }}
             >
               <span>🔄</span> {loadingReset ? "Mereset Cloud & Local..." : "Full Reset Semua Data Cloud & Local"}

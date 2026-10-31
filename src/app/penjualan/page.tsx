@@ -177,59 +177,77 @@ export default function PenjualanPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>PENJUALAN &amp; STATUS NOTA</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>PENJUALAN &amp; STATUS NOTA</span>
         </div>
-        <div className="tw-topbar-right">
-          <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
+        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span
+            className="tw-live-badge"
+            style={{
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
+            }}
+          >
+            <span
+              className="tw-status-dot"
+              style={{
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+              }}
+            />
             {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
 
-      <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="tw-content" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
         {/* KARTU REKAPITULASI TUNAI VS BON */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #10b981" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Tunai / Lunas</span>
-            <strong style={{ fontSize: "1.4rem", color: "#10b981" }}>Rp {totalCashSales.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Termasuk kas masuk &amp; bon terbayar</span>
+          
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #059669", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Total Penjualan Tunai / Lunas</span>
+            <strong style={{ fontSize: "1.4rem", color: "#059669", fontWeight: "700" }}>Rp {totalCashSales.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Termasuk kas masuk &amp; bon terbayar</span>
           </div>
 
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #ef4444" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Bon / Piutang Aktif</span>
-            <strong style={{ fontSize: "1.4rem", color: "#ef4444" }}>Rp {totalBonSales.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Belum dilunasi pelanggan</span>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #DC2626", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Total Penjualan Bon / Piutang Aktif</span>
+            <strong style={{ fontSize: "1.4rem", color: "#DC2626", fontWeight: "700" }}>Rp {totalBonSales.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Belum dilunasi pelanggan</span>
           </div>
 
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #f59e0b" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Akumulasi Seluruh Penjualan</span>
-            <strong style={{ fontSize: "1.4rem", color: "#f59e0b" }}>Rp {(totalCashSales + totalBonSales).toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Dari {sales.length} total transaksi</span>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #D97706", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Akumulasi Seluruh Penjualan</span>
+            <strong style={{ fontSize: "1.4rem", color: "#D97706", fontWeight: "700" }}>Rp {(totalCashSales + totalBonSales).toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Dari {sales.length} total transaksi</span>
           </div>
+
         </div>
 
         {/* TABEL RIWAYAT TRANSAKSI */}
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Riwayat Transaksi Kasir</h3>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Riwayat Transaksi Kasir</h3>
           </div>
 
           <div style={{ overflowX: "auto", maxHeight: "480px", overflowY: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", textAlign: "left" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--tw-border)", color: "var(--tw-muted)" }}>
-                  <th style={{ padding: "10px" }}>ID Trx &amp; Waktu</th>
-                  <th style={{ padding: "10px" }}>Detail Barang Terjual</th>
-                  <th style={{ padding: "10px" }}>Status Nota (Kasir)</th>
-                  <th style={{ padding: "10px" }}>Rincian Pembayaran</th>
-                  <th style={{ padding: "10px", textAlign: "right" }}>Aksi Struk</th>
+                <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#334155" }}>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>ID Trx &amp; Waktu</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Detail Barang Terjual</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Status Nota (Kasir)</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Rincian Pembayaran</th>
+                  <th style={{ padding: "10px", textAlign: "right", fontWeight: "600" }}>Aksi Struk</th>
                 </tr>
               </thead>
               <tbody>
                 {sales.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
+                    <td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
                       Belum ada riwayat transaksi penjualan dari mesin kasir.
                     </td>
                   </tr>
@@ -240,17 +258,17 @@ export default function PenjualanPage() {
                     const isTransfer = sale.paymentMethod === "transfer";
                     
                     return (
-                      <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px", verticalAlign: "top" }}>
-                          <strong style={{ color: "#38bdf8", display: "block" }}>{sale.id}</strong>
-                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</small>
+                          <span style={{ color: "#0284C7", display: "block", fontSize: "0.8rem", fontWeight: "600" }}>{sale.id}</span>
+                          <span style={{ color: "#64748B", fontSize: "0.75rem", fontWeight: "500" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</span>
                         </td>
 
                         <td style={{ padding: "10px", verticalAlign: "top" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                             {sale.items && sale.items.map((it: any, i: number) => (
-                              <div key={i} style={{ color: "#fff", fontSize: "0.8rem" }}>
-                                • {it.name} <span style={{ color: "var(--tw-muted)" }}>({it.qty}x @Rp {(it.sellPrice || 0).toLocaleString("id-ID")})</span>
+                              <div key={i} style={{ color: "#0F172A", fontSize: "0.82rem", fontWeight: "500" }}>
+                                • {it.name} <span style={{ color: "#64748B" }}>({it.qty}x @Rp {(it.sellPrice || 0).toLocaleString("id-ID")})</span>
                               </div>
                             ))}
                           </div>
@@ -262,31 +280,31 @@ export default function PenjualanPage() {
                             padding: "4px 10px", 
                             borderRadius: "6px", 
                             fontSize: "0.75rem", 
-                            fontWeight: "900",
-                            background: isBon ? "rgba(239, 68, 68, 0.2)" : isTerbayar ? "rgba(16, 185, 129, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
-                            color: isBon ? "#ef4444" : isTerbayar ? "#10b981" : isTransfer ? "#38bdf8" : "#10b981",
-                            border: isBon ? "1px solid rgba(239, 68, 68, 0.4)" : isTerbayar ? "1px solid rgba(16, 185, 129, 0.4)" : isTransfer ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)",
+                            fontWeight: "600",
+                            background: isBon ? "#FEE2E2" : isTerbayar ? "#D1FAE5" : isTransfer ? "#E0F2FE" : "#D1FAE5", 
+                            color: isBon ? "#991B1B" : isTerbayar ? "#065F46" : isTransfer ? "#0369A1" : "#065F46",
+                            border: isBon ? "1px solid #FCA5A5" : isTerbayar ? "1px solid #A7F3D0" : isTransfer ? "1px solid #BAE6FD" : "1px solid #A7F3D0",
                             display: "inline-block"
                           }}>
-                            {isBon ? "🔴 NOTA: BON / PIUTANG" : isTerbayar ? "🟢 NOTA: TERBAYAR (LUNAS)" : isTransfer ? "🔵 NOTA: TRANSFER" : "🟢 NOTA: TUNAI"}
+                            {isBon ? "NOTA: BON / PIUTANG" : isTerbayar ? "NOTA: TERBAYAR (LUNAS)" : isTransfer ? "NOTA: TRANSFER" : "NOTA: TUNAI"}
                           </span>
                           {sale.customerName && (
-                            <div style={{ fontSize: "0.75rem", color: "#38bdf8", marginTop: "6px", fontWeight: "bold" }}>
+                            <div style={{ fontSize: "0.75rem", color: "#0284C7", marginTop: "6px", fontWeight: "600" }}>
                               Pelanggan: {sale.customerName}
                             </div>
                           )}
                         </td>
 
-                        <td style={{ padding: "10px", verticalAlign: "top", fontSize: "0.78rem" }}>
+                        <td style={{ padding: "10px", verticalAlign: "top", fontSize: "0.82rem" }}>
                           {isBon ? (
-                            <div style={{ color: "#ef4444", fontWeight: "bold" }}>
+                            <div style={{ color: "#DC2626", fontWeight: "600" }}>
                               Masuk Piutang: Rp {(sale.total || 0).toLocaleString("id-ID")}
                             </div>
                           ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                              <span style={{ color: "var(--tw-muted)" }}>Bayar: Rp {(sale.pay || (isTerbayar ? sale.total : 0)).toLocaleString("id-ID")}</span>
-                              <span style={{ color: "#10b981" }}>Kembali: Rp {(sale.change || 0).toLocaleString("id-ID")}</span>
-                              <strong style={{ color: "#f59e0b" }}>Total: Rp {(sale.total || 0).toLocaleString("id-ID")}</strong>
+                              <span style={{ color: "#64748B", fontWeight: "500" }}>Bayar: Rp {(sale.pay || (isTerbayar ? sale.total : 0)).toLocaleString("id-ID")}</span>
+                              <span style={{ color: "#059669", fontWeight: "500" }}>Kembali: Rp {(sale.change || 0).toLocaleString("id-ID")}</span>
+                              <strong style={{ color: "#D97706", fontWeight: "600" }}>Total: Rp {(sale.total || 0).toLocaleString("id-ID")}</strong>
                             </div>
                           )}
                         </td>
@@ -294,14 +312,16 @@ export default function PenjualanPage() {
                         <td style={{ padding: "10px", verticalAlign: "top", textAlign: "right" }}>
                           <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
                             <button
+                              type="button"
                               onClick={() => setSelectedSale(sale)}
-                              style={{ padding: "6px 10px", background: "rgba(2, 132, 199, 0.2)", color: "#38bdf8", border: "1px solid rgba(2, 132, 199, 0.4)", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                              style={{ padding: "6px 10px", background: "#0284C7", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600" }}
                             >
                               📄 Lihat Struk
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleShareWhatsApp(sale)}
-                              style={{ padding: "6px 10px", background: "rgba(16, 185, 129, 0.2)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.4)", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                              style={{ padding: "6px 10px", background: "#059669", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600" }}
                             >
                               💬 WA
                             </button>
@@ -320,96 +340,98 @@ export default function PenjualanPage() {
 
       {/* MODAL PRATINJAU STRUK */}
       {selectedSale && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.8)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
-          <div style={{ background: "#ffffff", color: "#1e293b", border: "1px solid #cbd5e1", borderRadius: "12px", width: "100%", maxWidth: "400px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 15px 35px rgba(0,0,0,0.5)" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "20px" }}>
+          <div style={{ background: "#FFFFFF", color: "#0F172A", border: "1px solid #CBD5E1", borderRadius: "12px", width: "100%", maxWidth: "400px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
             
-            <div style={{ textAlign: "center", borderBottom: "2px dashed #cbd5e1", paddingBottom: "12px" }}>
-              <h2 style={{ fontSize: "1.3rem", fontWeight: "900", color: "#0f172a", margin: "0 0 4px 0" }}>{storeInfo.name.toUpperCase()}</h2>
-              <p style={{ fontSize: "0.78rem", fontWeight: "600", color: "#475569", margin: 0 }}>{storeInfo.address}</p>
-              <p style={{ fontSize: "0.78rem", fontWeight: "600", color: "#475569", margin: "2px 0 0 0" }}>Telp: {storeInfo.phone}</p>
+            <div style={{ textAlign: "center", borderBottom: "2px dashed #CBD5E1", paddingBottom: "12px" }}>
+              <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "#0F172A", margin: "0 0 4px 0" }}>{storeInfo.name.toUpperCase()}</h2>
+              <p style={{ fontSize: "0.78rem", fontWeight: "500", color: "#64748B", margin: 0 }}>{storeInfo.address}</p>
+              <p style={{ fontSize: "0.78rem", fontWeight: "500", color: "#64748B", margin: "2px 0 0 0" }}>Telp: {storeInfo.phone}</p>
             </div>
 
-            <div style={{ fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "6px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>
+            <div style={{ fontSize: "0.85rem", display: "flex", flexDirection: "column", gap: "6px", borderBottom: "1px solid #E2E8F0", paddingBottom: "10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: "600", color: "#64748b" }}>No. Invoice:</span>
-                <strong style={{ color: "#0f172a" }}>{selectedSale.id}</strong>
+                <span style={{ fontWeight: "500", color: "#64748B" }}>No. Invoice:</span>
+                <strong style={{ color: "#0F172A", fontWeight: "600" }}>{selectedSale.id}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: "600", color: "#64748b" }}>Waktu:</span>
-                <span style={{ fontWeight: "600", color: "#0f172a" }}>{selectedSale.date ? new Date(selectedSale.date).toLocaleString("id-ID") : "-"}</span>
+                <span style={{ fontWeight: "500", color: "#64748B" }}>Waktu:</span>
+                <span style={{ fontWeight: "500", color: "#0F172A" }}>{selectedSale.date ? new Date(selectedSale.date).toLocaleString("id-ID") : "-"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: "600", color: "#64748b" }}>Status Nota:</span>
+                <span style={{ fontWeight: "500", color: "#64748B" }}>Status Nota:</span>
                 <span style={{ 
                   padding: "3px 10px", 
                   borderRadius: "6px", 
-                  fontSize: "0.78rem", 
-                  fontWeight: "900", 
-                  background: selectedSale.paymentMethod === "bon" ? "#fee2e2" : "#d1fae5", 
-                  color: selectedSale.paymentMethod === "bon" ? "#dc2626" : "#059669" 
+                  fontSize: "0.75rem", 
+                  fontWeight: "600", 
+                  background: selectedSale.paymentMethod === "bon" ? "#FEE2E2" : "#D1FAE5", 
+                  color: selectedSale.paymentMethod === "bon" ? "#991B1B" : "#065F46" 
                 }}>
                   {selectedSale.paymentMethod === "bon" ? "STATUS: BON / PIUTANG" : "STATUS: LUNAS / TERBAYAR"}
                 </span>
               </div>
               {selectedSale.customerName && (
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontWeight: "600", color: "#64748b" }}>Nama Pelanggan:</span>
-                  <strong style={{ color: "#2563eb" }}>{selectedSale.customerName}</strong>
+                  <span style={{ fontWeight: "500", color: "#64748B" }}>Nama Pelanggan:</span>
+                  <strong style={{ color: "#0284C7", fontWeight: "600" }}>{selectedSale.customerName}</strong>
                 </div>
               )}
             </div>
 
-            <div style={{ borderBottom: "2px dashed #cbd5e1", paddingBottom: "10px", maxHeight: "180px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ borderBottom: "2px dashed #CBD5E1", paddingBottom: "10px", maxHeight: "180px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
               {selectedSale.items?.map((it: any, i: number) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
                   <div>
-                    <div style={{ color: "#0f172a", fontWeight: "800" }}>{it.name}</div>
-                    <div style={{ fontSize: "0.72rem", fontWeight: "600", color: "#64748b" }}>{it.qty} x @Rp {(it.sellPrice || 0).toLocaleString("id-ID")}</div>
+                    <div style={{ color: "#0F172A", fontWeight: "600" }}>{it.name}</div>
+                    <div style={{ fontSize: "0.75rem", fontWeight: "500", color: "#64748B" }}>{it.qty} x @Rp {(it.sellPrice || 0).toLocaleString("id-ID")}</div>
                   </div>
-                  <div style={{ color: "#0f172a", fontWeight: "900", alignSelf: "center" }}>
+                  <div style={{ color: "#0F172A", fontWeight: "600", alignSelf: "center" }}>
                     Rp {(it.qty * it.sellPrice).toLocaleString("id-ID")}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.85rem", background: "#f8fafc", padding: "10px", borderRadius: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "900" }}>
-                <span style={{ color: "#0f172a" }}>TOTAL BELANJA:</span>
-                <span style={{ color: "#d97706", fontSize: "1.1rem" }}>Rp {(selectedSale.total || 0).toLocaleString("id-ID")}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.85rem", background: "#F8FAFC", padding: "10px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
+                <span style={{ color: "#0F172A" }}>TOTAL BELANJA:</span>
+                <span style={{ color: "#D97706", fontSize: "1.05rem", fontWeight: "700" }}>Rp {(selectedSale.total || 0).toLocaleString("id-ID")}</span>
               </div>
               {selectedSale.paymentMethod !== "bon" ? (
                 <>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: "#475569", fontWeight: "700", fontSize: "0.8rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#475569", fontWeight: "500", fontSize: "0.8rem" }}>
                     <span>Bayar:</span>
                     <span>Rp {(selectedSale.pay || selectedSale.total || 0).toLocaleString("id-ID")}</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: "#059669", fontWeight: "900", fontSize: "0.8rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "#059669", fontWeight: "600", fontSize: "0.8rem" }}>
                     <span>Kembalian:</span>
                     <span>Rp {(selectedSale.change || 0).toLocaleString("id-ID")}</span>
                   </div>
                 </>
               ) : (
-                <div style={{ textAlign: "center", color: "#dc2626", fontSize: "0.78rem", fontWeight: "900", marginTop: "2px" }}>
+                <div style={{ textAlign: "center", color: "#DC2626", fontSize: "0.78rem", fontWeight: "600", marginTop: "2px" }}>
                   * TRANSAKSI MASUK KE MODUL PIUTANG PELANGGAN
                 </div>
               )}
             </div>
 
-            <div style={{ textAlign: "center", borderTop: "2px dashed #cbd5e1", paddingTop: "10px" }}>
-              <p style={{ fontSize: "0.8rem", fontWeight: "800", color: "#0f172a", margin: 0 }}>{storeInfo.footer}</p>
+            <div style={{ textAlign: "center", borderTop: "2px dashed #CBD5E1", paddingTop: "10px" }}>
+              <p style={{ fontSize: "0.8rem", fontWeight: "600", color: "#0F172A", margin: 0 }}>{storeInfo.footer}</p>
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
               <button
+                type="button"
                 onClick={() => handleShareWhatsApp(selectedSale)}
-                style={{ flex: 1, padding: "12px", background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)" }}
+                style={{ flex: 1, padding: "10px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
               >
                 <span>💬</span> Share WhatsApp
               </button>
               <button
+                type="button"
                 onClick={() => setSelectedSale(null)}
-                style={{ padding: "12px 18px", background: "#e2e8f0", color: "#0f172a", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" }}
+                style={{ padding: "10px 16px", background: "#F1F5F9", color: "#334155", border: "1px solid #CBD5E1", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
               >
                 Tutup
               </button>

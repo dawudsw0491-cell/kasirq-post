@@ -143,20 +143,17 @@ export default function KeuanganPage() {
 
   const totalModalKeseluruhan = totalModalProduk + totalPengeluaranLain;
 
-  // 3. Pemasukan Kas: Penjualan Lunas (Tunai/Transfer) + Transaksi Bon yang sudah Lunas/Terbayar + Data dari tw_finances (Pelunasan Piutang)
+  // 3. Pemasukan Kas: Penjualan Lunas (Tunai/Transfer) + Transaksi Bon yang sudah Lunas/Terbayar
   const penjualanLunas = salesHistory.filter((s: any) => {
     const statusText = (s.status || "").toLowerCase();
     const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
     
-    // Cek apakah bon ini sudah lunas/terbayar di tw_debts
     const matchingDebt = debtsHistory.find((d: any) => d.trxid === s.id || d.trxId === s.id || d.id === s.id);
     const isDebtPaidOff = matchingDebt && (matchingDebt.status === "Terbayar" || matchingDebt.status === "Lunas" || Number(matchingDebt.remainingamount ?? matchingDebt.remainingAmount ?? 0) <= 0);
 
-    // Masuk kas jika Tunai/Transfer ATAU Bon yang sudah dilunasi
     return (!isBon) || isDebtPaidOff;
   });
 
-  // Bon aktif yang belum dilunasi (masuk ke catatan piutang toko, belum masuk kas masuk)
   const penjualanBonAktif = salesHistory.filter((s: any) => {
     const statusText = (s.status || "").toLowerCase();
     const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
@@ -175,7 +172,6 @@ export default function KeuanganPage() {
   const totalOmzetLunas = penjualanLunas.reduce((sum, trx) => sum + (trx.total || 0), 0);
   const totalFinancesMasuk = pemasukanPelunasanFinances.reduce((sum, fin) => sum + Number(fin.amount || fin.total || 0), 0);
 
-  // Total Kas Masuk Keseluruhan
   const totalKasMasukKeseluruhan = totalOmzetLunas; 
   const totalPiutangBelumBayar = penjualanBonAktif.reduce((sum, trx) => sum + (trx.total || 0), 0);
   const estimatedProfit = totalKasMasukKeseluruhan - totalModalKeseluruhan;
@@ -184,22 +180,24 @@ export default function KeuanganPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>LAPORAN KEUANGAN &amp; ARUS KAS</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>LAPORAN KEUANGAN &amp; ARUS KAS</span>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
             className="tw-live-badge"
             style={{
-              backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-              color: isOnline ? "#10b981" : "#ef4444",
-              borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
             }}
           >
             <span
               className="tw-status-dot"
               style={{
-                backgroundColor: isOnline ? "#10b981" : "#ef4444",
-                boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
               }}
             />
             {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
@@ -207,62 +205,64 @@ export default function KeuanganPage() {
         </div>
       </header>
 
-      <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="tw-content" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
         {/* KARTU RINGKASAN KEUANGAN */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #10b981" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Kas Masuk (Lunas &amp; Pelunasan)</span>
-            <strong style={{ fontSize: "1.25rem", color: "#10b981" }}>Rp {totalKasMasukKeseluruhan.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Tunai, Transfer, &amp; Bon Terbayar</small>
+          
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #059669", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Total Kas Masuk (Lunas &amp; Pelunasan)</span>
+            <strong style={{ fontSize: "1.3rem", color: "#059669", fontWeight: "700" }}>Rp {totalKasMasukKeseluruhan.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Tunai, Transfer, &amp; Bon Terbayar</span>
           </div>
 
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #ef4444" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Piutang / Bon Belum Lunas</span>
-            <strong style={{ fontSize: "1.25rem", color: "#ef4444" }}>Rp {totalPiutangBelumBayar.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Belum masuk kas masuk (Piutang aktif)</small>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #DC2626", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Total Piutang / Bon Belum Lunas</span>
+            <strong style={{ fontSize: "1.3rem", color: "#DC2626", fontWeight: "700" }}>Rp {totalPiutangBelumBayar.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Belum masuk kas masuk (Piutang aktif)</span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #f59e0b" }} className="tw-card">
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Modal Produk</span>
-            <strong style={{ fontSize: "1.25rem", color: "#f59e0b" }}>Rp {totalModalKeseluruhan.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Akumulasi (Harga Beli × Qty)</small>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #D97706", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Total Modal Produk</span>
+            <strong style={{ fontSize: "1.3rem", color: "#D97706", fontWeight: "700" }}>Rp {totalModalKeseluruhan.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Akumulasi (Harga Beli × Qty)</span>
           </div>
 
-          <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #38bdf8" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Estimasi Selisih / Kas Bersih</span>
-            <strong style={{ fontSize: "1.25rem", color: "#38bdf8" }}>Rp {estimatedProfit.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Kas Masuk dikurangi Total Modal</small>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #0284C7", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <span style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600", textTransform: "uppercase" }}>Estimasi Selisih / Kas Bersih</span>
+            <strong style={{ fontSize: "1.3rem", color: "#0284C7", fontWeight: "700" }}>Rp {estimatedProfit.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "500" }}>Kas Masuk dikurangi Total Modal</span>
           </div>
+
         </div>
 
         {/* TABEL DETAIL ARUS KEUANGAN */}
-        <div className="tw-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Rincian Arus Pemasukan Kas &amp; Piutang Bon</h3>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Rincian Arus Pemasukan Kas &amp; Piutang Bon</h3>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             
             {/* Kolom Pemasukan Kas Lunas / Terbayar */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h4 style={{ fontSize: "0.9rem", color: "#10b981", margin: 0 }}>Pemasukan Kas Masuk ({penjualanLunas.length})</h4>
+              <h4 style={{ fontSize: "0.88rem", color: "#059669", margin: 0, fontWeight: "600" }}>Pemasukan Kas Masuk ({penjualanLunas.length})</h4>
               <div style={{ maxHeight: "320px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
                 {penjualanLunas.length === 0 ? (
-                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Belum ada data pemasukan kas lunas.</span>
+                  <span style={{ fontSize: "0.82rem", color: "#64748B", fontWeight: "500" }}>Belum ada data pemasukan kas lunas.</span>
                 ) : (
                   penjualanLunas.slice(0, 15).map((s, idx) => {
                     const statusText = (s.status || "").toLowerCase();
                     const isBonPaid = statusText.includes("bon") || statusText.includes("piutang");
                     return (
-                      <div key={`lunas-${idx}`} style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div key={`lunas-${idx}`} style={{ padding: "10px", background: "#F8FAFC", borderRadius: "8px", border: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>
+                          <strong style={{ fontSize: "0.8rem", color: "#0F172A", display: "block", fontWeight: "600" }}>
                             {s.id} {isBonPaid ? "(Bon Terbayar/Lunas)" : "(Tunai/Transfer)"}
                           </strong>
-                          <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</small>
+                          <span style={{ fontSize: "0.72rem", color: "#64748B", fontWeight: "500" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</span>
                         </div>
-                        <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#10b981" }}>+Rp {(s.total || 0).toLocaleString("id-ID")}</span>
+                        <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#059669" }}>+Rp {(s.total || 0).toLocaleString("id-ID")}</span>
                       </div>
                     );
                   })
@@ -272,18 +272,18 @@ export default function KeuanganPage() {
 
             {/* Kolom Bon / Piutang Aktif */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h4 style={{ fontSize: "0.9rem", color: "#ef4444", margin: 0 }}>Bon / Piutang Belum Lunas ({penjualanBonAktif.length})</h4>
+              <h4 style={{ fontSize: "0.88rem", color: "#DC2626", margin: 0, fontWeight: "600" }}>Bon / Piutang Belum Lunas ({penjualanBonAktif.length})</h4>
               <div style={{ maxHeight: "320px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
                 {penjualanBonAktif.length === 0 ? (
-                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Tidak ada piutang bon aktif saat ini.</span>
+                  <span style={{ fontSize: "0.82rem", color: "#64748B", fontWeight: "500" }}>Tidak ada piutang bon aktif saat ini.</span>
                 ) : (
                   penjualanBonAktif.slice(0, 15).map((s, idx) => (
-                    <div key={`bon-${idx}`} style={{ padding: "10px", background: "rgba(239, 68, 68, 0.05)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                    <div key={`bon-${idx}`} style={{ padding: "10px", background: "#FEF2F2", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #FCA5A5" }}>
                       <div>
-                        <strong style={{ fontSize: "0.8rem", color: "#f87171", display: "block" }}>{s.id} (Bon - {s.customerName || "Pelanggan"})</strong>
-                        <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</small>
+                        <strong style={{ fontSize: "0.8rem", color: "#991B1B", display: "block", fontWeight: "600" }}>{s.id} (Bon - {s.customerName || "Pelanggan"})</strong>
+                        <span style={{ fontSize: "0.72rem", color: "#64748B", fontWeight: "500" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</span>
                       </div>
-                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#ef4444" }}>Rp {(s.total || 0).toLocaleString("id-ID")}</span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#DC2626" }}>Rp {(s.total || 0).toLocaleString("id-ID")}</span>
                     </div>
                   ))
                 )}
