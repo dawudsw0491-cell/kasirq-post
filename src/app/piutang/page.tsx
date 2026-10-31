@@ -72,17 +72,20 @@ export default function PiutangPage() {
 
   useEffect(() => {
     loadDebts();
+
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    const handleStorageChange = () => loadDebts();
+    const handleStorageChange = () => {
+      loadDebts();
+    };
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v7")
+      .channel("public:tw_debts_autosync_v8")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -105,7 +108,8 @@ export default function PiutangPage() {
     return { dueDate, diffDays };
   };
 
-  const handlePelunasanSubmit = async () => {
+  const handlePelunasanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!payModalData || payAmount === "" || Number(payAmount) <= 0) {
       alert("Masukkan nominal pelunasan yang valid!");
       return;
@@ -173,20 +177,18 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    // Tutup modal terlebih dahulu agar tidak menumpuk
+    // Tutup modal dan reset input terlebih dahulu
+    setIsModalOpen(false); // jika ada modal state terpisah, atau setPayModalData(null)
     setPayModalData(null);
     setPayAmount("");
 
-    // Set notice sukses yang jelas dan tampil di bagian atas halaman
-    const successText = `✓ Berhasil! Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} telah disimpan. Status: ${newStatus}.`;
-    setMessage(successText);
-
-    // Auto-hide setelah 6 detik (atau bisa ditutup manual)
+    // Munculkan notice sukses persis seperti di Kasir
+    setMessage(`✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`);
     setTimeout(() => {
       setMessage("");
-    }, 6000);
+    }, 4000);
 
-    loadDebts();
+    await loadDebts();
   };
 
   return (
@@ -195,23 +197,38 @@ export default function PiutangPage() {
         <div className="tw-breadcrumb">
           <strong>MANAJEMEN PIUTANG &amp; PELUNASAN</strong>
         </div>
-        <div className="tw-topbar-right">
-          <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
+        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span
+            className="tw-live-badge"
+            style={{
+              backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+              color: isOnline ? "#10b981" : "#ef4444",
+              borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+            }}
+          >
+            <span
+              className="tw-status-dot"
+              style={{
+                backgroundColor: isOnline ? "#10b981" : "#ef4444",
+                boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+              }}
+            />
             {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-
-        {/* NOTICE / BANNER NOTIFIKASI SUKSES (PERSIS SEPERTI DI KASIR) */}
+        
+        {/* NOTICE / BANNER NOTIFIKASI SUKSES (SAMA SEPERTI DI KASIR) */}
         {message && (
-          <div style={{ padding: "14px 18px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "10px", fontSize: "0.9rem", border: "1px solid rgba(16, 185, 129, 0.4)", fontWeight: "bold", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ padding: "12px 16px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{message}</span>
-            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#10b981", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>✕</button>
+            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#10b981", cursor: "pointer", fontWeight: "bold" }}>✕</button>
           </div>
         )}
 
+        {/* MODAL / FORM PELUNASAN */}
         {payModalData && (
           <div className="tw-card" style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -221,7 +238,7 @@ export default function PiutangPage() {
             <div style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>
               Total Sisa Piutang: <strong style={{ color: "#ef4444" }}>Rp {Number(payModalData.remainingamount ?? payModalData.remainingAmount ?? payModalData.amount ?? 0).toLocaleString("id-ID")}</strong>
             </div>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <form onSubmit={handlePelunasanSubmit} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
               <input
                 type="number"
                 placeholder="Masukkan nominal bayar..."
@@ -230,17 +247,17 @@ export default function PiutangPage() {
                 style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
               />
               <button 
-                type="button" 
-                onClick={handlePelunasanSubmit} 
+                type="submit" 
                 className="tw-btn tw-btn-primary" 
-                style={{ padding: "10px 20px", fontWeight: "bold", cursor: "pointer", background: "#10b981", border: "none", color: "#fff", borderRadius: "6px" }}
+                style={{ padding: "8px 16px", fontWeight: "bold", cursor: "pointer", background: "#10b981", border: "none", color: "#fff", borderRadius: "6px" }}
               >
                 Simpan Pelunasan
               </button>
-            </div>
+            </form>
           </div>
         )}
 
+        {/* TABEL DAFTAR PIUTANG */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan ({debts.length})</h3>
 
