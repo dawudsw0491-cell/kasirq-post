@@ -7,41 +7,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Category {
-  id        String    @id @default(uuid())
-  name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  products  Product[]
+model tw_products {
+  skuCode        String   @id
+  name           String
+  category       String?
+  buyPrice       Decimal  @default(0)
+  retailPrice    Decimal  @default(0)
+  wholesalePrice Decimal  @default(0)
+  stock          Decimal  @default(0)
+  unit           String?  @default("kg")
+  isActive       Boolean  @default(true)
+  status         String?  @default("active")
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
 }
 
-model Product {
-  id          String      @id @default(uuid())
-  name        String
-  price       Float
-  stock       Int         @default(0)
-  categoryId  String
-  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  orderItems  OrderItem[]
+model tw_sales_history {
+  id            String   @id
+  date          String?
+  items         Json?
+  total         Decimal?
+  paymentMethod String?
+  customerName  String?
+  pay           Decimal?
+  change        Decimal?
+  status        String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
 }
 
-model Order {
-  id         String      @id @default(uuid())
-  totalAmount Float
-  status     String      @default("PENDING")
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  items      OrderItem[]
+model tw_customers {
+  id         String   @id
+  name       String
+  phone      String?
+  address    String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 }
 
-model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String
-  order     Order    @relation(fields: orderId, references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Float
+model tw_suppliers {
+  id         String   @id
+  name       String
+  contact    String?
+  address    String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model tw_debts {
+  id              String   @id
+  trxId           String?
+  customerName    String?
+  amount          Decimal? @default(0)
+  paidAmount      Decimal? @default(0)
+  remainingAmount Decimal? @default(0)
+  date            String?
+  status          String?  @default("Belum Lunas")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model tw_finances {
+  id          String   @id
+  date        String?
+  type        String?
+  category    String?
+  amount      Decimal? @default(0)
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
 }
