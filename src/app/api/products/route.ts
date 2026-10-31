@@ -1,27 +1,27 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// GET: Ambil semua daftar barang dari Supabase
+// GET: Ambil semua daftar barang dari Supabase (tabel tw_products)
 export async function GET() {
   try {
     const { data: products, error } = await supabase
-      .from("products")
+      .from("tw_products")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       throw error;
     }
 
-    // Mapping data agar sesuai dengan format nama variabel frontend Anda
+    // Mapping data agar sesuai dengan format frontend Anda
     const formattedData = (products || []).map((item) => ({
-      id: item.id,
-      sku: item.sku_code,
+      id: item.skuCode, // Menggunakan skuCode sebagai id unik
+      sku: item.skuCode,
       name: item.name,
-      price: item.retail_price,
-      costPrice: item.wholesale_price,
+      price: item.retailPrice,
+      costPrice: item.buyPrice, // Memetakan buyPrice ke costPrice frontend
       stock: item.stock,
-      createdAt: item.created_at,
+      createdAt: item.updated_at,
     }));
 
     return NextResponse.json({ success: true, data: formattedData });
@@ -33,7 +33,7 @@ export async function GET() {
   }
 }
 
-// POST: Tambah barang baru ke Supabase
+// POST: Tambah barang baru ke Supabase (tabel tw_products)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -56,15 +56,16 @@ export async function POST(request: Request) {
     const finalSku = sku && sku.trim() !== "" ? sku.trim() : `SKU-${Date.now()}`;
 
     const { data: newProduct, error } = await supabase
-      .from("products")
+      .from("tw_products")
       .insert([
         {
-          sku_code: finalSku,
+          skuCode: finalSku,
           name: name.trim(),
-          retail_price: parseFloat(price),
-          wholesale_price: costPrice ? parseFloat(costPrice) : 0,
-          stock: stock ? parseInt(stock, 10) : 0,
-          is_active: true,
+          retailPrice: parseFloat(price),
+          buyPrice: costPrice ? parseFloat(costPrice) : 0, // Menyimpan ke kolom buyPrice
+          stock: stock ? parseFloat(stock) : 0,
+          isActive: true,
+          status: "active",
         },
       ])
       .select()
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE: Hapus barang berdasarkan ID dari Supabase
+// DELETE: Hapus barang berdasarkan skuCode dari Supabase
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -97,9 +98,9 @@ export async function DELETE(request: Request) {
     }
 
     const { error } = await supabase
-      .from("products")
+      .from("tw_products")
       .delete()
-      .eq("id", id);
+      .eq("skuCode", id);
 
     if (error) {
       throw error;
