@@ -284,6 +284,14 @@ export default function KasirPage() {
       }
     }
 
+    // Menentukan status/keterangan pembayaran secara spesifik pada kolom 'status' yang ada di tabel
+    let transactionStatus = "Paid (Tunai)";
+    if (paymentMethod === "transfer") {
+      transactionStatus = "Paid (Transfer)";
+    } else if (paymentMethod === "piutang") {
+      transactionStatus = "Unpaid (Piutang)";
+    }
+
     const transactionId = "TRX-" + Date.now();
     const transaction = {
       id: transactionId,
@@ -293,8 +301,7 @@ export default function KasirPage() {
       total: totalCart,
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
-      payment_method: paymentMethod, // Membedakan cash, piutang, dan transfer di database/dashboard/keuangan
-      status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
+      status: transactionStatus, // Menyimpan metode pembayaran melalui kolom status yang valid di skema
     };
 
     // Simpan history transaksi ke Supabase
