@@ -57,15 +57,22 @@ export default function DashboardPage() {
       debts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
     }
 
-    // Memetakan status pembayaran secara akurat sesuai input kasir (Tunai, Transfer, Bon)
+    // Pemetaan status pembayaran dan pengecekan apakah bon sudah terbayar/lunas di tw_debts
     const sales = rawSales.map((s: any) => {
       const statusText = (s.status || "").toLowerCase();
       const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
       const isTransfer = statusText.includes("transfer");
 
+      // Cek status pelunasan dari data debts (tw_debts)
+      const matchingDebt = debts.find((d: any) => d.trxid === s.id || d.trxId === s.id || d.id === s.id);
+      const isDebtPaidOff = matchingDebt && (matchingDebt.status === "Terbayar" || matchingDebt.status === "Lunas" || Number(matchingDebt.remainingamount ?? matchingDebt.remainingAmount ?? 0) <= 0);
+
       let resolvedMethod = "Tunai";
-      if (isBon) resolvedMethod = "Bon";
-      else if (isTransfer) resolvedMethod = "Transfer";
+      if (isBon) {
+        resolvedMethod = isDebtPaidOff ? "Terbayar" : "Bon";
+      } else if (isTransfer) {
+        resolvedMethod = "Transfer";
+      }
 
       return {
         ...s,
@@ -88,9 +95,14 @@ export default function DashboardPage() {
       }
     });
 
+    // Total piutang aktif hanya menghitung item yang statusnya belum lunas/terbayar
     const activeDebts = debts
-      .filter((d: any) => d.status !== "Lunas")
-      .reduce((sum: number, d: any) => sum + (d.remainingAmount || 0), 0);
+      .filter((d: any) => {
+        const st = (d.status || "").toLowerCase();
+        const rem = Number(d.remainingamount ?? d.remainingAmount ?? d.amount ?? 0);
+        return st !== "lunas" && st !== "terbayar" && rem > 0;
+      })
+      .reduce((sum: number, d: any) => sum + Number(d.remainingamount ?? d.remainingAmount ?? d.amount ?? 0), 0);
 
     const lowStock = products.filter((p: any) => Number(p.stock || 0) <= 5);
 
@@ -281,6 +293,7 @@ export default function DashboardPage() {
                     recentSales.map((sale, idx) => {
                       const method = sale.paymentMethod;
                       const isBon = method === "Bon";
+                      const isTerbayar = method === "Terbayar";
                       const isTransfer = method === "Transfer";
                       
                       return (
@@ -293,8 +306,8 @@ export default function DashboardPage() {
                             <span style={{ 
                               padding: "2px 6px", 
                               borderRadius: "4px", 
-                              background: isBon ? "rgba(239, 68, 68, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
-                              color: isBon ? "#F87171" : isTransfer ? "#38BDF8" : "#34D399", 
+                              background: isBon ? "rgba(239, 68, 68, 0.2)" : isTerbayar ? "rgba(16, 185, 129, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
+                              color: isBon ? "#F87171" : isTerbayar ? "#34D399" : isTransfer ? "#38BDF8" : "#34D399", 
                               fontSize: "0.7rem", 
                               fontWeight: "bold" 
                             }}>
