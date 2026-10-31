@@ -5,15 +5,15 @@ import { supabase } from "@/lib/supabase";
 
 export default function KeuanganPage() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
-  const [purchaseHistory, setPurchaseHistory] = useState<any[]>([]);
   const [financesHistory, setFinancesHistory] = useState<any[]>([]);
+  const [debtsHistory, setDebtsHistory] = useState<any[]>([]);
   const [productsList, setProductsList] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(true);
 
   const loadFinancialData = async () => {
     let loadedSales: any[] = [];
-    let loadedPurchases: any[] = [];
     let loadedFinances: any[] = [];
+    let loadedDebts: any[] = [];
     let loadedProducts: any[] = [];
 
     try {
@@ -36,7 +36,7 @@ export default function KeuanganPage() {
     }
 
     try {
-      // 2. Ambil data pengeluaran / restock dari tw_purchase_history / tw_finances
+      // 2. Ambil data keuangan/pelunasan dari tw_finances
       const { data: finData, error: finError } = await supabase
         .from("tw_finances")
         .select("*")
@@ -46,16 +46,29 @@ export default function KeuanganPage() {
         loadedFinances = finData;
         localStorage.setItem("tw_purchase_history", JSON.stringify(finData));
       } else {
-        const savedPurchases = localStorage.getItem("tw_purchase_history");
-        if (savedPurchases) loadedFinances = JSON.parse(savedPurchases);
+        const savedFin = localStorage.getItem("tw_purchase_history");
+        if (savedFin) loadedFinances = JSON.parse(savedFin);
       }
     } catch (e) {
-      const savedPurchases = localStorage.getItem("tw_purchase_history");
-      if (savedPurchases) loadedFinances = JSON.parse(savedPurchases);
+      const savedFin = localStorage.getItem("tw_purchase_history");
+      if (savedFin) loadedFinances = JSON.parse(savedFin);
     }
 
     try {
-      // 3. Ambil data produk untuk perhitungan total modal (buyPrice * stock/qty)
+      // 3. Ambil data piutang tw_debts untuk cek status pelunasan bon
+      const { data: debtData } = await supabase.from("tw_debts").select("*");
+      if (debtData) {
+        loadedDebts = debtData;
+        localStorage.setItem("kasirq_piutang", JSON.stringify(debtData));
+      } else {
+        loadedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
+      }
+    } catch (e) {
+      loadedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
+    }
+
+    try {
+      // 4. Ambil data produk untuk total modal (buyPrice * stock)
       const { data: prodData } = await supabase.from("tw_products").select("*");
       if (prodData) {
         loadedProducts = prodData;
@@ -69,6 +82,7 @@ export default function KeuanganPage() {
 
     setSalesHistory(loadedSales);
     setFinancesHistory(loadedFinances);
+    setDebtsHistory(loadedDebts);
     setProductsList(loadedProducts);
   };
 
@@ -85,22 +99,22 @@ export default function KeuanganPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const salesChannel = supabase
-      .channel("public:tw_sales_history_finance_v2")
+      .channel("public:tw_sales_history_finance_v3")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_sales_history" }, () => {
         loadFinancialData();
       })
       .subscribe();
 
     const financesChannel = supabase
-      .channel("public:tw_finances_finance_v2")
+      .channel("public:tw_finances_finance_v3")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_finances" }, () => {
         loadFinancialData();
       })
       .subscribe();
 
-    const productsChannel = supabase
-      .channel("public:tw_products_finance_v2")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
+    const debtsChannel = supabase
+      .channel("public:tw_debts_finance_v3")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadFinancialData();
       })
       .subscribe();
@@ -111,41 +125,59 @@ export default function KeuanganPage() {
       window.removeEventListener("storage", handleStorageChange);
       supabase.removeChannel(salesChannel);
       supabase.removeChannel(financesChannel);
-      supabase.removeChannel(productsChannel);
+      supabase.removeChannel(debtsChannel);
     };
   }, []);
 
-  // 1. Hitung total modal produk terdaftar (buyPrice * stock)
+  // 1. Akumulasi Modal Produk (buyPrice * stock)
   const totalModalProduk = productsList.reduce((sum, p) => {
     const buy = Number(p.buyPrice ?? p.buyprice ?? 0);
     const st = Number(p.stock ?? 0);
     return sum + (buy * st);
   }, 0);
 
-  // 2. Hitung total pengeluaran dari tabel finances (termasuk restock / pengeluaran lain)
+  // 2. Pengeluaran lain dari tw_finances (tipe 'Keluar')
   const totalPengeluaranLain = financesHistory
     .filter((f) => (f.type || "").toLowerCase() === "keluar")
     .reduce((sum, f) => sum + Number(f.amount || f.total || 0), 0);
 
   const totalModalKeseluruhan = totalModalProduk + totalPengeluaranLain;
 
-  // 3. Hitung pemasukan kas (Penjualan Tunai/Transfer + Pelunasan Piutang yang masuk ke tw_finances)
-  const penjualanTunaiTransfer = salesHistory.filter((s: any) => {
+  // 3. Pemasukan Kas: Penjualan Lunas (Tunai/Transfer) + Transaksi Bon yang sudah Lunas/Terbayar + Data dari tw_finances (Pelunasan Piutang)
+  const penjualanLunas = salesHistory.filter((s: any) => {
     const statusText = (s.status || "").toLowerCase();
-    return !statusText.includes("bon") && !statusText.includes("piutang") && !statusText.includes("unpaid");
+    const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
+    
+    // Cek apakah bon ini sudah lunas/terbayar di tw_debts
+    const matchingDebt = debtsHistory.find((d: any) => d.trxid === s.id || d.trxId === s.id || d.id === s.id);
+    const isDebtPaidOff = matchingDebt && (matchingDebt.status === "Terbayar" || matchingDebt.status === "Lunas" || Number(matchingDebt.remainingamount ?? matchingDebt.remainingAmount ?? 0) <= 0);
+
+    // Masuk kas jika Tunai/Transfer ATAU Bon yang sudah dilunasi
+    return (!isBon) || isDebtPaidOff;
   });
 
-  const pemasukanPelunasanBon = financesHistory.filter((f: any) => {
-    const cat = (f.category || "").toLowerCase();
-    const desc = (f.description || "").toLowerCase();
+  // Bon aktif yang belum dilunasi (masuk ke catatan piutang toko, belum masuk kas masuk)
+  const penjualanBonAktif = salesHistory.filter((s: any) => {
+    const statusText = (s.status || "").toLowerCase();
+    const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
+    
+    const matchingDebt = debtsHistory.find((d: any) => d.trxid === s.id || d.trxId === s.id || d.id === s.id);
+    const isDebtPaidOff = matchingDebt && (matchingDebt.status === "Terbayar" || matchingDebt.status === "Lunas" || Number(matchingDebt.remainingamount ?? matchingDebt.remainingAmount ?? 0) <= 0);
+
+    return isBon && !isDebtPaidOff;
+  });
+
+  const pemasukanPelunasanFinances = financesHistory.filter((f: any) => {
     const type = (f.type || "").toLowerCase();
-    return type === "masuk" && (cat.includes("pelunasan") || desc.includes("pelunasan") || desc.includes("bon"));
+    return type === "masuk";
   });
 
-  const totalOmzetPenjualanLunas = penjualanTunaiTransfer.reduce((sum, trx) => sum + (trx.total || 0), 0);
-  const totalPemasukanPelunasan = pemasukanPelunasanBon.reduce((sum, fin) => sum + Number(fin.amount || fin.total || 0), 0);
+  const totalOmzetLunas = penjualanLunas.reduce((sum, trx) => sum + (trx.total || 0), 0);
+  const totalFinancesMasuk = pemasukanPelunasanFinances.reduce((sum, fin) => sum + Number(fin.amount || fin.total || 0), 0);
 
-  const totalKasMasukKeseluruhan = totalOmzetPenjualanLunas + totalPemasukanPelunasan;
+  // Total Kas Masuk Keseluruhan
+  const totalKasMasukKeseluruhan = totalOmzetLunas; 
+  const totalPiutangBelumBayar = penjualanBonAktif.reduce((sum, trx) => sum + (trx.total || 0), 0);
   const estimatedProfit = totalKasMasukKeseluruhan - totalModalKeseluruhan;
 
   return (
@@ -180,15 +212,21 @@ export default function KeuanganPage() {
         {/* KARTU RINGKASAN KEUANGAN */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #10b981" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Kas Masuk (Penjualan + Pelunasan)</span>
+            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Kas Masuk (Lunas &amp; Pelunasan)</span>
             <strong style={{ fontSize: "1.25rem", color: "#10b981" }}>Rp {totalKasMasukKeseluruhan.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Tunai/Transfer &amp; Pelunasan Bon</small>
+            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Tunai, Transfer, &amp; Bon Terbayar</small>
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #ef4444" }}>
-            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Modal Produk &amp; Pengeluaran</span>
-            <strong style={{ fontSize: "1.25rem", color: "#ef4444" }}>Rp {totalModalKeseluruhan.toLocaleString("id-ID")}</strong>
-            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Akumulasi (BuyPrice × Qty Produk) + Biaya</small>
+            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Piutang / Bon Belum Lunas</span>
+            <strong style={{ fontSize: "1.25rem", color: "#ef4444" }}>Rp {totalPiutangBelumBayar.toLocaleString("id-ID")}</strong>
+            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Belum masuk kas masuk (Piutang aktif)</small>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #f59e0b" }} className="tw-card">
+            <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Total Modal Produk</span>
+            <strong style={{ fontSize: "1.25rem", color: "#f59e0b" }}>Rp {totalModalKeseluruhan.toLocaleString("id-ID")}</strong>
+            <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Akumulasi (Harga Beli × Qty)</small>
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "8px", borderLeft: "4px solid #38bdf8" }}>
@@ -201,68 +239,54 @@ export default function KeuanganPage() {
         {/* TABEL DETAIL ARUS KEUANGAN */}
         <div className="tw-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Rincian Arus Pemasukan &amp; Pengeluaran</h3>
+            <h3 className="tw-card-title" style={{ margin: 0 }}>Rincian Arus Pemasukan Kas &amp; Piutang Bon</h3>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
             
-            {/* Kolom Pemasukan Kas */}
+            {/* Kolom Pemasukan Kas Lunas / Terbayar */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h4 style={{ fontSize: "0.9rem", color: "#10b981", margin: 0 }}>Pemasukan Kas (Penjualan Lunas &amp; Pelunasan Bon)</h4>
+              <h4 style={{ fontSize: "0.9rem", color: "#10b981", margin: 0 }}>Pemasukan Kas Masuk ({penjualanLunas.length})</h4>
               <div style={{ maxHeight: "320px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-                {penjualanTunaiTransfer.length === 0 && pemasukanPelunasanBon.length === 0 ? (
-                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Belum ada data pemasukan kas.</span>
+                {penjualanLunas.length === 0 ? (
+                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Belum ada data pemasukan kas lunas.</span>
                 ) : (
-                  <>
-                    {penjualanTunaiTransfer.slice(0, 10).map((s, idx) => (
-                      <div key={`sale-${idx}`} style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  penjualanLunas.slice(0, 15).map((s, idx) => {
+                    const statusText = (s.status || "").toLowerCase();
+                    const isBonPaid = statusText.includes("bon") || statusText.includes("piutang");
+                    return (
+                      <div key={`lunas-${idx}`} style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{s.id} (Tunai/Transfer)</strong>
+                          <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>
+                            {s.id} {isBonPaid ? "(Bon Terbayar/Lunas)" : "(Tunai/Transfer)"}
+                          </strong>
                           <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</small>
                         </div>
                         <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#10b981" }}>+Rp {(s.total || 0).toLocaleString("id-ID")}</span>
                       </div>
-                    ))}
-                    {pemasukanPelunasanBon.slice(0, 10).map((f, idx) => (
-                      <div key={`fin-${idx}`} style={{ padding: "10px", background: "rgba(56, 189, 248, 0.05)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(56, 189, 248, 0.2)" }}>
-                        <div>
-                          <strong style={{ fontSize: "0.8rem", color: "#38bdf8", display: "block" }}>{f.description || "Pelunasan Piutang"}</strong>
-                          <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{f.date ? new Date(f.date).toLocaleString("id-ID") : "-"}</small>
-                        </div>
-                        <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#10b981" }}>+Rp {Number(f.amount || f.total || 0).toLocaleString("id-ID")}</span>
-                      </div>
-                    ))}
-                  </>
+                    );
+                  })
                 )}
               </div>
             </div>
 
-            {/* Kolom Pengeluaran / Modal Produk */}
+            {/* Kolom Bon / Piutang Aktif */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h4 style={{ fontSize: "0.9rem", color: "#ef4444", margin: 0 }}>Akumulasi Modal Produk &amp; Pengeluaran</h4>
+              <h4 style={{ fontSize: "0.9rem", color: "#ef4444", margin: 0 }}>Bon / Piutang Belum Lunas ({penjualanBonAktif.length})</h4>
               <div style={{ maxHeight: "320px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ padding: "10px", background: "rgba(239, 68, 68, 0.05)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
-                  <div>
-                    <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>Total Modal Seluruh Produk</strong>
-                    <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Berdasarkan (Harga Beli × Qty Stok)</small>
-                  </div>
-                  <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#ef4444" }}>-Rp {totalModalProduk.toLocaleString("id-ID")}</span>
-                </div>
-
-                {productsList.slice(0, 8).map((p, idx) => {
-                  const buy = Number(p.buyPrice ?? p.buyprice ?? 0);
-                  const st = Number(p.stock ?? 0);
-                  const subTotalModal = buy * st;
-                  return (
-                    <div key={`prod-${idx}`} style={{ padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem" }}>
+                {penjualanBonAktif.length === 0 ? (
+                  <span style={{ fontSize: "0.8rem", color: "var(--tw-muted)" }}>Tidak ada piutang bon aktif saat ini.</span>
+                ) : (
+                  penjualanBonAktif.slice(0, 15).map((s, idx) => (
+                    <div key={`bon-${idx}`} style={{ padding: "10px", background: "rgba(239, 68, 68, 0.05)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
                       <div>
-                        <span style={{ color: "#fff", fontWeight: "bold" }}>{p.name}</span>
-                        <small style={{ display: "block", color: "var(--tw-muted)", fontSize: "0.68rem" }}>Stok: {st} {p.unit || "pcs"} × Rp {buy.toLocaleString("id-ID")}</small>
+                        <strong style={{ fontSize: "0.8rem", color: "#f87171", display: "block" }}>{s.id} (Bon - {s.customerName || "Pelanggan"})</strong>
+                        <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>{s.date ? new Date(s.date).toLocaleString("id-ID") : "-"}</small>
                       </div>
-                      <span style={{ color: "var(--tw-muted)", fontWeight: "600" }}>Rp {subTotalModal.toLocaleString("id-ID")}</span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: "#ef4444" }}>Rp {(s.total || 0).toLocaleString("id-ID")}</span>
                     </div>
-                  );
-                })}
+                  ))
+                )}
               </div>
             </div>
 
