@@ -247,7 +247,7 @@ export default function KasirPage() {
       handleOpenModal(found);
     } else {
       setMessage(`❌ SKU/Barang "${code}" tidak ditemukan atau non-aktif`);
-      setTimeout(() => setMessage("3000"), 3000);
+      setTimeout(() => setMessage(""), 3000);
     }
   };
 
@@ -288,8 +288,11 @@ export default function KasirPage() {
     const transaction = {
       id: transactionId,
       date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       items: cart,
       total: totalCart,
+      total_amount: totalCart, // Diselaraskan agar Dashboard / Keuangan membaca omset
+      totalAmount: totalCart,  // Kompatibilitas cadangan
       paymentMethod,
       customerName: paymentMethod === "piutang" ? customerName.trim() : "Umum",
       pay: paymentMethod === "cash" ? payAmount : totalCart,
@@ -298,7 +301,11 @@ export default function KasirPage() {
     };
 
     // Simpan history transaksi ke Supabase
-    await supabase.from("tw_sales_history").insert([transaction]);
+    const { error: saleError } = await supabase.from("tw_sales_history").insert([transaction]);
+    if (saleError) {
+      alert("Gagal mencatat riwayat omset: " + saleError.message);
+      return;
+    }
 
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
     localStorage.setItem("tw_sales_history", JSON.stringify([transaction, ...savedHistory]));
@@ -335,7 +342,7 @@ export default function KasirPage() {
     // Refresh data produk
     await loadProducts();
 
-    setMessage(`✓ Transaksi Berhasil! Stok barang telah dipotong.`);
+    setMessage(`✓ Transaksi Berhasil! Stok dan Omset telah diperbarui.`);
     setCart([]);
     setPayAmount("");
     setCustomerName("");
