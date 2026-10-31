@@ -85,7 +85,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v8")
+      .channel("public:tw_debts_autosync_v9")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -177,17 +177,14 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    // Tutup modal dan reset input terlebih dahulu
-    setIsModalOpen(false); // jika ada modal state terpisah, atau setPayModalData(null)
+    // 1. Tutup modal form pelunasan dengan benar menggunakan setPayModalData(null)
     setPayModalData(null);
     setPayAmount("");
 
-    // Munculkan notice sukses persis seperti di Kasir
+    // 2. Set state message agar banner sukses langsung ter-render di DOM
     setMessage(`✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`);
-    setTimeout(() => {
-      setMessage("");
-    }, 4000);
 
+    // 3. Reload data dari database tanpa mengganggu state message
     await loadDebts();
   };
 
@@ -220,7 +217,7 @@ export default function PiutangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
-        {/* NOTICE / BANNER NOTIFIKASI SUKSES (SAMA SEPERTI DI KASIR) */}
+        {/* BANNER NOTICE: Ditempatkan paling atas di dalam tw-content agar langsung terlihat */}
         {message && (
           <div style={{ padding: "12px 16px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{message}</span>
