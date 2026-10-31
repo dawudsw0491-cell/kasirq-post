@@ -12,17 +12,51 @@ export default function PiutangPage() {
 
   const loadDebts = async () => {
     try {
-      const { data, error } = await supabase
+      let fetchedDebts: any[] = [];
+
+      // 1. Ambil data dari tabel tw_debts Supabase
+      const { data: debtData, error: debtError } = await supabase
         .from("tw_debts")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setDebts(data);
-        localStorage.setItem("kasirq_piutang", JSON.stringify(data));
+      if (!error && debtData) {
+        fetchedDebts = debtData;
       } else {
-        fallbackLoadLocal();
+        const savedDebts = localStorage.getItem("kasirq_piutang");
+        fetchedDebts = savedDebts ? JSON.parse(savedDebts) : [];
       }
+
+      // 2. AUTO-SYNC: Pindai tw_sales_history untuk memastikan semua transaksi Bon tercatat di piutang
+      const { data: salesData } = await supabase.from("tw_sales_history").select("*");
+      if (salesData) {
+        const bonSales = salesData.filter((s: any) => {
+          const st = (s.status || "").toLowerCase();
+          return st.includes("bon") || st.includes("piutang") || st.includes("unpaid");
+        });
+
+        for (const sale of bonSales) {
+          const exists = fetchedDebts.some((d: any) => d.trxId === sale.id || d.id === sale.id);
+          if (!exists) {
+            const newDebt = {
+              id: "PIU-" + (sale.id ? sale.id.replace("TRX-", "") : Date.now()),
+              trxId: sale.id,
+              customerName: sale.customerName || "Pelanggan Bon",
+              amount: sale.total || 0,
+              paidAmount: 0,
+              remainingAmount: sale.total || 0,
+              date: sale.date || sale.created_at || new Date().toISOString(),
+              status: "Belum Lunas",
+            };
+            // Masukkan ke Supabase tw_debts secara otomatis
+            await supabase.from("tw_debts").insert([newDebt]).catch(() => {});
+            fetchedDebts.unshift(newDebt);
+          }
+        }
+      }
+
+      setDebts(fetchedDebts);
+      localStorage.setItem("kasirq_piutang", JSON.stringify(fetchedDebts));
     } catch (e) {
       fallbackLoadLocal();
     }
@@ -52,7 +86,7 @@ export default function PiutangPage() {
 
     // Supabase Realtime Subscription untuk sinkronisasi piutang
     const channel = supabase
-      .channel("public:tw_debts_full_sync")
+      .channel("public:tw_debts_autosync")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
