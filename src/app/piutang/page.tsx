@@ -8,7 +8,7 @@ export default function PiutangPage() {
   const [payModalData, setPayModalData] = useState<any>(null);
   const [payAmount, setPayAmount] = useState<number | "">("");
   const [isOnline, setIsOnline] = useState(true);
-  const [message, setMessage] = useState("");
+  const [successNotice, setSuccessNotice] = useState("");
 
   const loadDebts = async () => {
     try {
@@ -77,29 +77,22 @@ export default function PiutangPage() {
   useEffect(() => {
     loadDebts();
 
+    // Cek apakah ada pesan sukses yang disimpan sebelum reload halaman
+    const savedMsg = sessionStorage.getItem("piutang_success_msg");
+    if (savedMsg) {
+      setSuccessNotice(savedMsg);
+      sessionStorage.removeItem("piutang_success_msg");
+    }
+
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    const handleStorageChange = () => {
-      loadDebts();
-    };
-    window.addEventListener("storage", handleStorageChange);
-
-    const channel = supabase
-      .channel("public:tw_debts_autosync_v15")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
-        loadDebts();
-      })
-      .subscribe();
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("storage", handleStorageChange);
-      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -167,34 +160,17 @@ export default function PiutangPage() {
       console.error("Gagal catat keuangan:", err);
     }
 
-    const updatedDebts = debts.map((item) => {
-      if (item.id === payModalData.id) {
-        return {
-          ...item,
-          paidamount: newPaid,
-          remainingamount: newRemaining,
-          status: newStatus,
-        };
-      }
-      return item;
-    });
-
-    setDebts(updatedDebts);
-    localStorage.setItem("kasirq_piutang", JSON.stringify(updatedDebts));
-
-    window.dispatchEvent(new Event("storage"));
-
-    setPayModalData(null);
-    setPayAmount("");
-
-    setMessage(`✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Simpan pesan ke session storage lalu reload halaman secara mutlak agar banner dijamin muncul
+    const msg = `✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`;
+    sessionStorage.setItem("piutang_success_msg", msg);
+    
+    window.location.reload();
   };
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box", position: "relative" }}>
       
-      {message && (
+      {successNotice && (
         <div style={{
           position: "fixed",
           top: "20px",
@@ -212,8 +188,8 @@ export default function PiutangPage() {
           alignItems: "center",
           border: "1px solid rgba(255,255,255,0.3)"
         }}>
-          <span style={{ fontWeight: "bold" }}>{message}</span>
-          <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>✕</button>
+          <span style={{ fontWeight: "bold" }}>{successNotice}</span>
+          <button onClick={() => setSuccessNotice("")} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>✕</button>
         </div>
       )}
 
