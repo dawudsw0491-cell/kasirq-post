@@ -279,20 +279,22 @@ export default function KasirPage() {
       }
     } else if (paymentMethod === "piutang") {
       if (!customerName.trim()) {
-        alert("Mohon masukkan nama pelanggan untuk transaksi Piutang!");
+        alert("Mohon masukkan nama pelanggan untuk transaksi Bon (Piutang)!");
         return;
       }
     }
 
-    // Menentukan status/keterangan pembayaran secara spesifik pada kolom 'status' yang ada di tabel
-    let transactionStatus = "Paid (Tunai)";
+    // Menentukan status pembayaran secara akurat (Tunai, Transfer, atau Bon)
+    let transactionStatus = "Tunai";
     if (paymentMethod === "transfer") {
-      transactionStatus = "Paid (Transfer)";
+      transactionStatus = "Transfer";
     } else if (paymentMethod === "piutang") {
-      transactionStatus = "Unpaid (Piutang)";
+      transactionStatus = "Bon";
     }
 
     const transactionId = "TRX-" + Date.now();
+    const resolvedCustomer = customerName.trim() ? customerName.trim() : (paymentMethod === "piutang" ? "Pelanggan Bon" : "Umum / Tunai");
+
     const transaction = {
       id: transactionId,
       date: new Date().toISOString(),
@@ -301,7 +303,8 @@ export default function KasirPage() {
       total: totalCart,
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
-      status: transactionStatus, // Menyimpan metode pembayaran melalui kolom status yang valid di skema
+      status: transactionStatus,      // Status konsisten: Tunai / Transfer / Bon
+      customerName: resolvedCustomer, // Nama pelanggan tercatat otomatis
     };
 
     // Simpan history transaksi ke Supabase
@@ -314,12 +317,13 @@ export default function KasirPage() {
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
     localStorage.setItem("tw_sales_history", JSON.stringify([transaction, ...savedHistory]));
 
+    // Jika status Bon (Piutang), catat ke modul piutang
     if (paymentMethod === "piutang") {
       const savedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
       const newDebtRecord = {
         id: "PIU-" + Date.now(),
         trxId: transactionId,
-        customerName: customerName.trim(),
+        customerName: resolvedCustomer,
         amount: totalCart,
         paidAmount: 0,
         remainingAmount: totalCart,
@@ -327,6 +331,18 @@ export default function KasirPage() {
         status: "Belum Lunas",
       };
       localStorage.setItem("kasirq_piutang", JSON.stringify([newDebtRecord, ...savedDebts]));
+    }
+
+    // Catat otomatis ke database pelanggan agar muncul di modul Pelanggan
+    const existingCustomers = JSON.parse(localStorage.getItem("tw_customers") || "[]");
+    if (!existingCustomers.some((c: any) => c.name.toLowerCase() === resolvedCustomer.toLowerCase())) {
+      const newCustRecord = {
+        id: "CUST-" + Date.now(),
+        name: resolvedCustomer,
+        lastTransactionDate: new Date().toISOString(),
+        totalSpent: totalCart,
+      };
+      localStorage.setItem("tw_customers", JSON.stringify([newCustRecord, ...existingCustomers]));
     }
 
     // Update stok di Supabase untuk setiap produk di keranjang
@@ -346,7 +362,7 @@ export default function KasirPage() {
     // Refresh data produk
     await loadProducts();
 
-    setMessage(`✓ Transaksi Berhasil! Stok dan Omset telah diperbarui.`);
+    setMessage(`✓ Transaksi Berhasil! Status (${transactionStatus}) & Pelanggan (${resolvedCustomer}) tercatat otomatis.`);
     setCart([]);
     setPayAmount("");
     setCustomerName("");
@@ -495,7 +511,7 @@ export default function KasirPage() {
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Metode Pembayaran</label>
+              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Metode Pembayaran / Status</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
@@ -510,13 +526,33 @@ export default function KasirPage() {
                   fontWeight: "bold",
                 }}
               >
-                <option value="cash" style={{ background: "#090d16" }}>💵 Cash (Tunai)</option>
-                <option value="piutang" style={{ background: "#090d16" }}>📝 Piutang (Bon)</option>
+                <option value="cash" style={{ background: "#090d16" }}>💵 Tunai</option>
                 <option value="transfer" style={{ background: "#090d16" }}>💳 Transfer</option>
+                <option value="piutang" style={{ background: "#090d16" }}>📝 Bon (Piutang)</option>
               </select>
             </div>
 
-            {paymentMethod === "cash" ? (
+            <div>
+              <label style={{ display: "block", fontSize: "0.75rem", color: paymentMethod === "piutang" ? "#ef4444" : "var(--tw-muted)", marginBottom: "4px" }}>
+                Nama Pelanggan {paymentMethod === "piutang" ? "(Wajib untuk Bon)" : "(Opsional)"}
+              </label>
+              <input
+                type="text"
+                placeholder="Masukkan nama pelanggan..."
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  background: paymentMethod === "piutang" ? "rgba(239, 68, 68, 0.05)" : "rgba(255,255,255,0.03)",
+                  border: paymentMethod === "piutang" ? "1px solid #ef4444" : "1px solid var(--tw-border)",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+              />
+            </div>
+
+            {paymentMethod === "cash" && (
               <>
                 <div>
                   <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nominal Uang Tunai</label>
@@ -533,18 +569,7 @@ export default function KasirPage() {
                   <strong style={{ color: "#38bdf8" }}>Rp {changeAmount.toLocaleString("id-ID")}</strong>
                 </div>
               </>
-            ) : paymentMethod === "piutang" ? (
-              <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "#ef4444", marginBottom: "4px" }}>Nama Pelanggan (Piutang / Bon)</label>
-                <input
-                  type="text"
-                  placeholder="Masukkan nama pembeli..."
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  style={{ width: "100%", padding: "8px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid #ef4444", borderRadius: "8px", color: "#fff" }}
-                />
-              </div>
-            ) : null}
+            )}
 
             <button
               onClick={handleCheckout}
@@ -557,7 +582,7 @@ export default function KasirPage() {
                 background: paymentMethod === "piutang" ? "#ef4444" : "#10b981",
               }}
             >
-              Bayar
+              Bayar &amp; Catat Transaksi
             </button>
           </div>
         </div>
