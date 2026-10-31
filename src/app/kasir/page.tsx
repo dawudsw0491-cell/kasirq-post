@@ -326,16 +326,16 @@ export default function KasirPage() {
     if (paymentMethod === "piutang") {
       const newDebtRecord = {
         id: "PIU-" + Date.now(),
-        trxId: transactionId,
-        customerName: resolvedCustomer,
+        trxid: transactionId,
+        customername: resolvedCustomer,
         amount: totalCart,
-        paidAmount: 0,
-        remainingAmount: totalCart,
+        paidamount: 0,
+        remainingamount: totalCart,
         date: new Date().toISOString(),
         status: "Belum Lunas",
       };
 
-      // Simpan ke Supabase tabel tw_debts agar tampil di halaman Piutang
+      // Simpan ke Supabase tabel tw_debts dengan kunci lowercase sesuai skema SQL
       const { error: debtError } = await supabase.from("tw_debts").insert([newDebtRecord]);
       if (debtError) {
         console.error("Gagal mencatat piutang ke Supabase:", debtError.message);
