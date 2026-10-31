@@ -314,7 +314,7 @@ export default function KasirPage() {
       return;
     }
 
-    // Menyimpan versi lengkap dengan nama pelanggan ke localStorage agar dashboard, penjualan, keuangan, dan piutang tetap merekam nama pelanggan
+    // Menyimpan versi lengkap dengan nama pelanggan ke localStorage
     const transactionWithCustomer = {
       ...transaction,
       customerName: resolvedCustomer,
@@ -322,9 +322,8 @@ export default function KasirPage() {
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
     localStorage.setItem("tw_sales_history", JSON.stringify([transactionWithCustomer, ...savedHistory]));
 
-    // Jika status Bon (Piutang), catat ke modul piutang
+    // Jika status Bon (Piutang), catat ke modul piutang (Supabase & localStorage)
     if (paymentMethod === "piutang") {
-      const savedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
       const newDebtRecord = {
         id: "PIU-" + Date.now(),
         trxId: transactionId,
@@ -335,6 +334,15 @@ export default function KasirPage() {
         date: new Date().toISOString(),
         status: "Belum Lunas",
       };
+
+      // Simpan ke Supabase tabel tw_debts agar tampil di halaman Piutang
+      const { error: debtError } = await supabase.from("tw_debts").insert([newDebtRecord]);
+      if (debtError) {
+        console.error("Gagal mencatat piutang ke Supabase:", debtError.message);
+      }
+
+      // Simpan juga ke localStorage sebagai cadangan offline
+      const savedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
       localStorage.setItem("kasirq_piutang", JSON.stringify([newDebtRecord, ...savedDebts]));
     }
 
