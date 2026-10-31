@@ -133,9 +133,9 @@ export default function KodeBarangPage() {
     if (found) {
       setName(found.name || "");
       setCategory(found.category || "Sembako");
-      setBuyPrice(found.buyPrice !== undefined ? found.buyPrice : "");
-      setRetailPrice(found.retailPrice !== undefined ? found.retailPrice : (found.sellPrice !== undefined ? found.sellPrice : ""));
-      setWholesalePrice(found.wholesalePrice !== undefined ? found.wholesalePrice : "");
+      setBuyPrice(found.buyPrice !== undefined ? found.buyPrice : (found.buyprice !== undefined ? found.buyprice : ""));
+      setRetailPrice(found.retailPrice !== undefined ? found.retailPrice : (found.retailprice !== undefined ? found.retailprice : ""));
+      setWholesalePrice(found.wholesalePrice !== undefined ? found.wholesalePrice : (found.wholesaleprice !== undefined ? found.wholesaleprice : ""));
       setStock(found.stock !== undefined ? found.stock : "");
       setUnit(found.unit || "kg");
       setMessage(`ℹ️ SKU "${val}" sudah terdaftar. Mode Update aktif.`);
@@ -146,15 +146,15 @@ export default function KodeBarangPage() {
 
   // Fungsi untuk memuat data SKU ke form saat tombol "Edit" diklik di tabel
   const handleEditRow = (p: any) => {
-    setSkuCode(p.skuCode || "");
+    setSkuCode(p.skuCode || p.skucode || "");
     setName(p.name || "");
     setCategory(p.category || "Sembako");
-    setBuyPrice(p.buyPrice !== undefined ? p.buyPrice : "");
-    setRetailPrice(p.retailPrice !== undefined ? p.retailPrice : (p.sellPrice !== undefined ? p.sellPrice : ""));
-    setWholesalePrice(p.wholesalePrice !== undefined ? p.wholesalePrice : "");
+    setBuyPrice(p.buyPrice !== undefined ? p.buyPrice : (p.buyprice !== undefined ? p.buyprice : ""));
+    setRetailPrice(p.retailPrice !== undefined ? p.retailPrice : (p.retailprice !== undefined ? p.retailprice : ""));
+    setWholesalePrice(p.wholesalePrice !== undefined ? p.wholesalePrice : (p.wholesaleprice !== undefined ? p.wholesaleprice : ""));
     setStock(p.stock !== undefined ? p.stock : "");
     setUnit(p.unit || "kg");
-    setMessage(`✏️ Mode Edit aktif untuk SKU: ${p.skuCode}`);
+    setMessage(`✏️ Mode Edit aktif untuk SKU: ${p.skuCode || p.skucode}`);
     if (skuInputRef.current) {
       skuInputRef.current.focus();
     }
@@ -169,9 +169,10 @@ export default function KodeBarangPage() {
     }
 
     const cleanSku = skuCode.trim();
-    const existingIndex = products.findIndex((p) => p.skuCode?.toLowerCase() === cleanSku.toLowerCase());
+    const existingIndex = products.findIndex((p) => (p.skuCode || p.skucode)?.toLowerCase() === cleanSku.toLowerCase());
     const parsedStockValue = stock === "" ? 0 : parseFloat(String(stock));
 
+    // Payload murni hanya kolom yang ada di database tabel tw_products (tanpa isActive/status)
     const productPayload = {
       skuCode: cleanSku,
       name,
@@ -181,12 +182,9 @@ export default function KodeBarangPage() {
       wholesalePrice: Number(wholesalePrice),
       stock: parsedStockValue,
       unit: unit || "kg",
-      isActive: true,
-      status: "active",
-      updated_at: new Date().toISOString(),
     };
 
-    // Simpan ke Supabase Cloud menggunakan tabel tw_products yang benar
+    // Simpan ke Supabase Cloud
     const { error } = await supabase.from("tw_products").upsert([productPayload], { onConflict: "skuCode" });
     
     if (error) {
@@ -223,20 +221,11 @@ export default function KodeBarangPage() {
   };
 
   const toggleStatus = async (sku: string) => {
-    const target = products.find((p) => p.skuCode === sku);
-    if (!target) return;
-
-    const nextActive = target.isActive === false ? true : false;
-    const updatedStatus = nextActive ? "active" : "inactive";
-
-    await supabase
-      .from("tw_products")
-      .update({ isActive: nextActive, status: updatedStatus })
-      .eq("skuCode", sku);
-
+    // Pengelolaan status lokal karena kolom status tidak ada di tabel database
     const updated = products.map((p) => {
-      if (p.skuCode === sku) {
-        return { ...p, isActive: nextActive, status: updatedStatus };
+      if ((p.skuCode || p.skucode) === sku) {
+        const currentActive = p.localActive !== false;
+        return { ...p, localActive: !currentActive };
       }
       return p;
     });
@@ -248,7 +237,7 @@ export default function KodeBarangPage() {
   const filteredProducts = products.filter(
     (p) =>
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.skuCode?.toLowerCase().includes(searchTerm.toLowerCase())
+      (p.skuCode || p.skucode)?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -362,7 +351,7 @@ export default function KodeBarangPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal (Desimal: 0.25 - 2)</label>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal</label>
                 <input
                   type="number"
                   step="any"
@@ -448,20 +437,24 @@ export default function KodeBarangPage() {
                   </tr>
                 ) : (
                   filteredProducts.map((p, idx) => {
-                    const isActive = p.isActive !== false && p.status !== "inactive";
+                    const codeVal = p.skuCode || p.skucode;
+                    const retailVal = p.retailPrice !== undefined ? p.retailPrice : p.retailprice;
+                    const wholesaleVal = p.wholesalePrice !== undefined ? p.wholesalePrice : p.wholesaleprice;
+                    const isRowActive = p.localActive !== false;
+
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                        <td style={{ padding: "10px", fontWeight: "bold", color: "#38bdf8" }}>{p.skuCode}</td>
+                        <td style={{ padding: "10px", fontWeight: "bold", color: "#38bdf8" }}>{codeVal}</td>
                         <td style={{ padding: "10px", color: "#fff" }}>{p.name}</td>
                         <td style={{ padding: "10px", color: "var(--tw-muted)", fontSize: "0.78rem" }}>{p.category || "Sembako"}</td>
                         <td style={{ padding: "10px", color: "#38bdf8", fontWeight: "bold" }}>
                           {p.stock !== undefined ? p.stock : 0} <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)", fontWeight: "normal" }}>({p.unit || "kg"})</span>
                         </td>
-                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(p.wholesalePrice || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {(retailVal || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(wholesaleVal || 0).toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px" }}>
-                          <span style={{ padding: "3px 8px", background: isActive ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isActive ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
-                            {isActive ? "Aktif" : "Non-Aktif"}
+                          <span style={{ padding: "3px 8px", background: isRowActive ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isRowActive ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
+                            {isRowActive ? "Aktif" : "Non-Aktif"}
                           </span>
                         </td>
                         <td style={{ padding: "10px", textAlign: "center", display: "flex", justifyContent: "center", gap: "6px" }}>
@@ -472,10 +465,10 @@ export default function KodeBarangPage() {
                             Edit
                           </button>
                           <button
-                            onClick={() => toggleStatus(p.skuCode)}
-                            style={{ padding: "4px 8px", background: isActive ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", color: isActive ? "#ef4444" : "#10b981", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                            onClick={() => toggleStatus(codeVal)}
+                            style={{ padding: "4px 8px", background: isRowActive ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", color: isRowActive ? "#ef4444" : "#10b981", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
                           >
-                            {isActive ? "Non-Aktifkan" : "Aktifkan"}
+                            {isRowActive ? "Non-Aktifkan" : "Aktifkan"}
                           </button>
                         </td>
                       </tr>
