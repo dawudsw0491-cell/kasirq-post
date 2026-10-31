@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
+import { supabase } from "@/lib/supabase";
 
 export interface FeatureSettings {
   barang: boolean;
@@ -34,6 +35,7 @@ export default function PengaturanPage() {
   const [ppnActive, setPpnActive] = useState(true);
   const [ppnValue, setPpnValue] = useState(11);
   const [pphActive, setPphActive] = useState(false);
+  const [loadingReset, setLoadingReset] = useState(false);
 
   // State Pengaturan Toggle Fitur
   const [features, setFeatures] = useState<FeatureSettings>(DEFAULT_FEATURES);
@@ -147,11 +149,11 @@ export default function PengaturanPage() {
         ["ID", "Kode SKU", "Nama Barang", "Kategori", "Harga Modal", "Harga Jual", "Stok Tersedia", "Status Kritis Stok"],
         ...rawProducts.map((p: any, idx: number) => [
           p.id,
-          p.skuCode,
+          p.skuCode || p.skucode,
           p.name,
           p.category,
-          p.buyPrice,
-          p.sellPrice,
+          p.buyPrice || p.buyprice,
+          p.retailPrice || p.retailprice,
           p.stock,
           { t: "s", f: `IF(G${idx + 3}<=5, "STOK MENIPIS", "AMAN")` },
         ]),
@@ -175,7 +177,7 @@ export default function PengaturanPage() {
               it.qty,
               it.sellPrice,
               { t: "n", f: `D${salesFlatRows.length + 1}*E${salesFlatRows.length + 1}` },
-              i === 0 ? s.total : "",
+              i === 0 ? (s.total_amount || s.total) : "",
               i === 0 ? s.pay : "",
               i === 0 ? s.change : "",
             ]);
@@ -248,72 +250,75 @@ export default function PengaturanPage() {
     }
   };
 
-  // FULL RESET: MENGHAPUS SELURUH KEUANGAN, SALDO, PIUTANG, STOK & OPERASIONAL DARI SPESIFIK AKURAT
-  const handleFullReset = () => {
+  // FULL RESET: MENGHAPUS DATABASE CLOUD SUPABASE DAN LOCAL STORAGE KESELURUHAN
+  const handleFullReset = async () => {
     const confirmReset = confirm(
-      "PERINGATAN DENGAN AKSES PENUH:\n\nSeluruh data keuangan (pemasukan, pengeluaran, restock, saldo kas, laporan laba rugi), riwayat transaksi, piutang, hutang, stok barang, katalog SKU, pelanggan, dan supplier akan DIHAPUS TOTAL secara permanen.\n\nApakah Anda yakin ingin memulai operasional dari nol?"
+      "PERINGATAN DENGAN AKSES PENUH:\n\nSeluruh data di SUPABASE CLOUD DATABASE (riwayat penjualan, omset, stok barang, produk SKU, piutang, hutang, keuangan) & MEMORI LOCAL STORAGE akan DIHAPUS TOTAL dari nol.\n\nApakah Anda yakin ingin melakukan Full Reset?"
     );
     if (!confirmReset) return;
 
-    // 1. Daftar seluruh key spesifik operasional & keuangan (Termasuk key pembelian/restock)
-    const keysToRemove = [
-      // Key Produk & Stok
-      "tw_master_sku",
-      "tw_products",
-      
-      // Key Penjualan & Kasir
-      "tw_sales_history",
-      
-      // Key Pembelian / Restock / Pengeluaran Barang
-      "tw_pembelian",
-      "tw_purchases",
-      
-      // Key Keuangan, Kas, Laba Rugi, Piutang, Hutang
-      "kasirq_piutang",
-      "kasirq_hutang",
-      "tw_financials",
-      "kasirq_keuangan",
-      "tw_cash_flow",
-      "tw_expenses",
-      "tw_incomes",
-      "kasirq_saldo",
-      
-      // Key Relasi & Mitra
-      "tw_suppliers",
-      "tw_customers",
-      "kasirq_pelanggan",
-    ];
+    setLoadingReset(true);
 
-    keysToRemove.forEach((key) => {
-      localStorage.removeItem(key);
-    });
-
-    // 2. Pembersihan Sekunder (Iterasi otomatis untuk menangkap seluruh key dinamis yang tersisa)
     try {
+      // 1. HAPUS DATA SECARA PERMANEN DI CLOUD DATABASE SUPABASE
+      await supabase.from("tw_sales_history").delete().neq("id", "0");
+      await supabase.from("tw_products").delete().neq("skuCode", "0");
+      
+      // Opsional: Hapus tabel pendukung lainnya jika terdaftar di Supabase
+      try {
+        await supabase.from("tw_customers").delete().neq("id", "0");
+        await supabase.from("tw_suppliers").delete().neq("id", "0");
+        await supabase.from("tw_debts").delete().neq("id", "0");
+        await supabase.from("tw_finances").delete().neq("id", "0");
+      } catch (errDb) {
+        // Abaikan jika tabel pendukung belum dibuat di Supabase
+      }
+
+      // 2. HAPUS SELURUH KEY LOCAL STORAGE BROWSER
+      const keysToRemove = [
+        "tw_master_sku",
+        "tw_products",
+        "tw_sales_history",
+        "tw_pembelian",
+        "tw_purchases",
+        "kasirq_piutang",
+        "kasirq_hutang",
+        "tw_financials",
+        "kasirq_keuangan",
+        "tw_cash_flow",
+        "tw_expenses",
+        "tw_incomes",
+        "kasirq_saldo",
+        "tw_suppliers",
+        "tw_customers",
+        "kasirq_pelanggan",
+      ];
+
+      keysToRemove.forEach((key) => {
+        localStorage.removeItem(key);
+      });
+
+      // Iterasi pembersihan cadangan
       const allKeys = Object.keys(localStorage);
       allKeys.forEach((key) => {
         if (
-          key.startsWith("tw_fin_") ||
-          key.startsWith("kasirq_fin_") ||
-          key.startsWith("tw_kas_") ||
-          key.startsWith("tw_pur_") ||
-          key.includes("financial") ||
-          key.includes("keuangan") ||
-          key.includes("pembelian") ||
-          key.includes("purchase")
+          key.startsWith("tw_") ||
+          key.startsWith("kasirq_")
         ) {
-          localStorage.removeItem(key);
+          if (key !== "tw_store_name" && key !== "tw_app_name" && key !== "tw_store_address" && key !== "tw_store_phone") {
+            localStorage.removeItem(key);
+          }
         }
       });
-    } catch (e) {
-      console.error("Gagal melakukan pindaian pembersihan sekunder", e);
+
+      window.dispatchEvent(new Event("storage"));
+      alert("✓ BERHASIL FULL RESET! Seluruh data di Cloud Supabase & Local Storage telah bersih total (0).");
+      window.location.reload();
+    } catch (err: any) {
+      alert("Gagal mereset data Supabase Cloud: " + (err.message || err));
+    } finally {
+      setLoadingReset(false);
     }
-
-    // Picu event storage agar halaman lain mendeteksi pembersihan real-time
-    window.dispatchEvent(new Event("storage"));
-
-    alert("✓ Seluruh data keuangan, restock, dan operasional telah di-reset bersih secara total (0).");
-    window.location.reload();
   };
 
   const featureList: { key: keyof FeatureSettings; title: string; desc: string }[] = [
@@ -584,10 +589,11 @@ export default function PengaturanPage() {
               <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#ef4444" }}>Full Reset (Mulai dari 0)</h3>
             </div>
             <p style={{ fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "16px" }}>
-              Hapus seluruh data omset, transaksi, keuangan, piutang, hutang, stok barang, pelanggan, dan supplier untuk memulai operasional toko baru dari awal.
+              Hapus seluruh data omset, transaksi, keuangan, piutang, hutang, stok barang di Supabase Cloud &amp; Local Storage untuk memulai dari awal.
             </p>
             <button
               onClick={handleFullReset}
+              disabled={loadingReset}
               style={{
                 width: "100%",
                 background: "#ef4444",
@@ -596,7 +602,7 @@ export default function PengaturanPage() {
                 borderRadius: "8px",
                 border: "none",
                 fontWeight: "bold",
-                cursor: "pointer",
+                cursor: loadingReset ? "wait" : "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -604,7 +610,7 @@ export default function PengaturanPage() {
                 boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
               }}
             >
-              <span>🔄</span> Full Reset Semua Data Keuangan &amp; Operasional
+              <span>🔄</span> {loadingReset ? "Mereset Cloud & Local..." : "Full Reset Semua Data Cloud & Local"}
             </button>
           </div>
 
