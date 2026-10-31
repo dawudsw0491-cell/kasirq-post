@@ -64,7 +64,6 @@ export default function KodeBarangPage() {
       skuInputRef.current.focus();
     }
 
-    // Supabase Realtime Subscription untuk sinkronisasi otomatis
     const channel = supabase
       .channel("public:tw_products_kode")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
@@ -83,7 +82,6 @@ export default function KodeBarangPage() {
     };
   }, []);
 
-  // 1. GENERATE KODE UNIK OTOMATIS
   const handleGenerateUniqueSku = () => {
     const randomCode = "TW-" + Math.floor(100000 + Math.random() * 900000);
     setSkuCode(randomCode);
@@ -94,7 +92,6 @@ export default function KodeBarangPage() {
     }
   };
 
-  // 2. AKTIFKAN / MATIKAN SCANNER KAMERA HP
   const toggleCameraScanner = () => {
     if (isScanning) {
       if (scannerRef.current) {
@@ -142,7 +139,6 @@ export default function KodeBarangPage() {
     }
   };
 
-  // Fungsi untuk memuat data SKU ke form saat tombol "Edit" diklik di tabel
   const handleEditRow = (p: any) => {
     setSkuCode(p.skuCode || p.skucode || "");
     setName(p.name || "");
@@ -216,13 +212,11 @@ export default function KodeBarangPage() {
     }
   };
 
-  // 3. FUNGSI HAPUS PRODUK TERINTEGRASI SUPABASE & LOCALSTORAGE
   const handleDeleteProduct = async (sku: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus produk dengan SKU "${sku}" secara permanen?`)) {
       return;
     }
 
-    // Hapus dari database Supabase berdasarkan skuCode
     const { error } = await supabase
       .from("tw_products")
       .delete()
@@ -233,7 +227,6 @@ export default function KodeBarangPage() {
       return;
     }
 
-    // Perbarui state lokal dan localStorage
     const updated = products.filter((p) => (p.skuCode || p.skucode) !== sku);
     setProducts(updated);
     localStorage.setItem("tw_products", JSON.stringify(updated));
@@ -253,42 +246,59 @@ export default function KodeBarangPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>MASTER KODE BARANG</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>MASTER KODE BARANG</span>
         </div>
-        <div className="tw-topbar-right">
-          <span className="tw-live-badge" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)", color: isOnline ? "#10b981" : "#ef4444" }}>
-            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
+        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span
+            className="tw-live-badge"
+            style={{
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
+            }}
+          >
+            <span
+              className="tw-status-dot"
+              style={{
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+              }}
+            />
+            {isOnline ? "ONLINE (Terhubung)" : "OFFLINE"}
           </span>
         </div>
       </header>
 
-      <div className="tw-content" style={{ padding: "20px", display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: "20px" }}>
+      <div className="tw-content" style={{ padding: "24px", display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: "20px" }}>
         
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "14px", height: "fit-content" }}>
-          <h3 className="tw-card-title">Registrasi / Scan SKU &amp; Stok Masuk</h3>
+        {/* KARTU KIRI: FORM REGISTRASI / SKU */}
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px", height: "fit-content", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+          <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Registrasi / Scan SKU &amp; Stok Masuk</h3>
 
           {message && (
-            <div style={{ padding: "10px", background: message.includes("ℹ️") || message.includes("✏️") ? "rgba(56, 189, 248, 0.15)" : "rgba(16, 185, 129, 0.15)", color: message.includes("ℹ️") || message.includes("✏️") ? "#38bdf8" : "#10b981", borderRadius: "8px", fontSize: "0.85rem" }}>
+            <div style={{ padding: "10px", background: message.includes("ℹ️") || message.includes("✏️") ? "#E0F2FE" : "#D1FAE5", color: message.includes("ℹ️") || message.includes("✏️") ? "#0369A1" : "#065F46", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "600", border: message.includes("ℹ️") || message.includes("✏️") ? "1px solid #BAE6FD" : "1px solid #A7F3D0" }}>
               {message}
             </div>
           )}
 
-          <form onSubmit={handleSaveSku} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <form onSubmit={handleSaveSku} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
-                <label style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Scan Barcode / QR / Kode SKU</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <label style={{ fontSize: "0.8rem", color: "#334155", fontWeight: "600" }}>Scan Barcode / QR / Kode SKU</label>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     type="button"
                     onClick={handleGenerateUniqueSku}
-                    style={{ background: "transparent", border: "none", color: "#38bdf8", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                    style={{ background: "transparent", border: "none", color: "#0284C7", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline", padding: 0, fontWeight: "600" }}
                   >
                     + Generate Kode Unik
                   </button>
                   <button
                     type="button"
                     onClick={toggleCameraScanner}
-                    style={{ background: isScanning ? "#ef4444" : "#10b981", border: "none", color: "#fff", fontSize: "0.7rem", cursor: "pointer", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold" }}
+                    style={{ background: isScanning ? "#DC2626" : "#059669", border: "none", color: "#fff", fontSize: "0.75rem", cursor: "pointer", padding: "2px 8px", borderRadius: "4px", fontWeight: "600" }}
                   >
                     {isScanning ? "Tutup Kamera" : "📷 Scan Kamera"}
                   </button>
@@ -296,7 +306,7 @@ export default function KodeBarangPage() {
               </div>
 
               {isScanning && (
-                <div style={{ marginBottom: "10px", background: "#1e293b", padding: "8px", borderRadius: "8px", border: "1px solid #38bdf8" }}>
+                <div style={{ marginBottom: "10px", background: "#FFFFFF", padding: "12px", borderRadius: "8px", border: "1px solid #CBD5E1", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
                   <div id="reader-kode" style={{ width: "100%" }}></div>
                 </div>
               )}
@@ -307,138 +317,139 @@ export default function KodeBarangPage() {
                 placeholder="Arahkan alat scan USB, ketik, atau scan kamera..."
                 value={skuCode}
                 onChange={(e) => handleSkuChange(e.target.value)}
-                style={{ width: "100%", padding: "7px 10px", background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", borderRadius: "8px", color: "#fff" }}
+                style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #0284C7", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
               />
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Nama Barang</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Nama Barang</label>
               <input
                 type="text"
                 placeholder="Contoh: Gula Pasir / Minyak Goreng..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
               />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Kategori</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Kategori</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 >
-                  <option value="Sembako" style={{ background: "#090d16" }}>Sembako</option>
-                  <option value="Kebutuhan Pokok" style={{ background: "#090d16" }}>Kebutuhan Pokok</option>
-                  <option value="Makanan & Minuman" style={{ background: "#090d16" }}>Makanan & Minuman</option>
-                  <option value="Bumbu Dapur" style={{ background: "#090d16" }}>Bumbu Dapur</option>
-                  <option value="Rokok & Tembakau" style={{ background: "#090d16" }}>Rokok & Tembakau</option>
-                  <option value="Perawatan Tubuh" style={{ background: "#090d16" }}>Perawatan Tubuh</option>
-                  <option value="Kebersihan Rumah Tangga" style={{ background: "#090d16" }}>Kebersihan Rumah Tangga</option>
-                  <option value="Lainnya" style={{ background: "#090d16" }}>Lainnya</option>
+                  <option value="Sembako">Sembako</option>
+                  <option value="Kebutuhan Pokok">Kebutuhan Pokok</option>
+                  <option value="Makanan & Minuman">Makanan & Minuman</option>
+                  <option value="Bumbu Dapur">Bumbu Dapur</option>
+                  <option value="Rokok & Tembakau">Rokok & Tembakau</option>
+                  <option value="Perawatan Tubuh">Perawatan Tubuh</option>
+                  <option value="Kebersihan Rumah Tangga">Kebersihan Rumah Tangga</option>
+                  <option value="Lainnya">Lainnya</option>
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Satuan Unit</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Satuan Unit</label>
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 >
-                  <option value="kg" style={{ background: "#090d16" }}>Kg (Kilogram)</option>
-                  <option value="gram" style={{ background: "#090d16" }}>Gram</option>
-                  <option value="pcs" style={{ background: "#090d16" }}>Pcs</option>
-                  <option value="pack" style={{ background: "#090d16" }}>Pack</option>
-                  <option value="liter" style={{ background: "#090d16" }}>Liter</option>
-                  <option value="dus" style={{ background: "#090d16" }}>Dus</option>
+                  <option value="kg">Kg (Kilogram)</option>
+                  <option value="gram">Gram</option>
+                  <option value="pcs">Pcs</option>
+                  <option value="pack">Pack</option>
+                  <option value="liter">Liter</option>
+                  <option value="dus">Dus</option>
                 </select>
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Qty Stok Awal</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Qty Stok Awal</label>
                 <input
                   type="number"
                   step="any"
                   placeholder="0 atau 0.25"
                   value={stock}
                   onChange={(e) => setStock(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Harga Modal (buyPrice)</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Harga Modal</label>
                 <input
                   type="number"
                   placeholder="0"
                   value={buyPrice}
                   onChange={(e) => setBuyPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 />
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Harga Retail</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#059669", marginBottom: "4px", fontWeight: "600" }}>Harga Retail</label>
                 <input
                   type="number"
                   placeholder="0"
                   value={retailPrice}
                   onChange={(e) => setRetailPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #059669", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Harga Grosir</label>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#D97706", marginBottom: "4px", fontWeight: "600" }}>Harga Grosir</label>
                 <input
                   type="number"
                   placeholder="0"
                   value={wholesalePrice}
                   onChange={(e) => setWholesalePrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                  style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #D97706", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 />
               </div>
             </div>
 
-            <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "10px", fontWeight: "bold", marginTop: "4px" }}>
+            <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "10px", fontWeight: "600", marginTop: "4px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.9rem" }}>
               Simpan / Update Master SKU &amp; Stok
             </button>
           </form>
         </div>
 
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {/* KARTU KANAN: DAFTAR MASTER SKU */}
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Master SKU ({filteredProducts.length})</h3>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Master SKU ({filteredProducts.length})</h3>
             <input
               type="text"
               placeholder="Cari SKU / Nama Barang..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--tw-border)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: "0.8rem", width: "200px" }}
+              style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#0F172A", fontSize: "0.85rem", width: "200px", fontWeight: "500" }}
             />
           </div>
 
           <div style={{ overflowX: "auto", maxHeight: "500px", overflowY: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", textAlign: "left" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--tw-border)", color: "var(--tw-muted)" }}>
-                  <th style={{ padding: "10px" }}>SKU</th>
-                  <th style={{ padding: "10px" }}>Nama Barang</th>
-                  <th style={{ padding: "10px" }}>Kategori</th>
-                  <th style={{ padding: "10px" }}>Stok / Satuan</th>
-                  <th style={{ padding: "10px" }}>Retail</th>
-                  <th style={{ padding: "10px" }}>Grosir</th>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Aksi</th>
+                <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#334155" }}>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>SKU</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Nama Barang</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Kategori</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Stok / Satuan</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Retail</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Grosir</th>
+                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "600" }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
+                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
                       Belum ada master SKU terdaftar.
                     </td>
                   </tr>
@@ -449,25 +460,27 @@ export default function KodeBarangPage() {
                     const wholesaleVal = p.wholesalePrice !== undefined ? p.wholesalePrice : p.wholesaleprice;
 
                     return (
-                      <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                        <td style={{ padding: "10px", fontWeight: "bold", color: "#38bdf8" }}>{codeVal}</td>
-                        <td style={{ padding: "10px", color: "#fff" }}>{p.name}</td>
-                        <td style={{ padding: "10px", color: "var(--tw-muted)", fontSize: "0.78rem" }}>{p.category || "Sembako"}</td>
-                        <td style={{ padding: "10px", color: "#38bdf8", fontWeight: "bold" }}>
-                          {p.stock !== undefined ? p.stock : 0} <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)", fontWeight: "normal" }}>({p.unit || "kg"})</span>
+                      <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9", transition: "background 0.2s" }}>
+                        <td style={{ padding: "10px", fontWeight: "600", color: "#0284C7" }}>{codeVal}</td>
+                        <td style={{ padding: "10px", color: "#0F172A", fontWeight: "600" }}>{p.name}</td>
+                        <td style={{ padding: "10px", color: "#64748B", fontSize: "0.78rem", fontWeight: "500" }}>{p.category || "Sembako"}</td>
+                        <td style={{ padding: "10px", color: "#0F172A", fontWeight: "600" }}>
+                          {p.stock !== undefined ? p.stock : 0} <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: "normal" }}>({p.unit || "kg"})</span>
                         </td>
-                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {(retailVal || 0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(wholesaleVal || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#059669", fontWeight: "600" }}>Rp {(retailVal || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#D97706", fontWeight: "600" }}>Rp {(wholesaleVal || 0).toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px", textAlign: "center", display: "flex", justifyContent: "center", gap: "6px" }}>
                           <button
+                            type="button"
                             onClick={() => handleEditRow(p)}
-                            style={{ padding: "4px 8px", background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                            style={{ padding: "4px 10px", background: "#0284C7", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600" }}
                           >
                             Edit
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDeleteProduct(codeVal)}
-                            style={{ padding: "4px 8px", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                            style={{ padding: "4px 10px", background: "#DC2626", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600" }}
                           >
                             Hapus
                           </button>

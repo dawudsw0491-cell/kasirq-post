@@ -14,14 +14,12 @@ export default function KasirPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
 
-  // State untuk Modal Pengaturan Takaran & Level Harga Item Curah
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [modalPriceType, setModalPriceType] = useState<"retail" | "wholesale">("retail");
-  const [qtyMode, setQtyMode] = useState("1"); // "1/5", "1/4", "1/2", "1", "2", "custom"
+  const [qtyMode, setQtyMode] = useState("1");
   const [customQty, setCustomQty] = useState("1");
 
-  // State tambahan untuk Scan Kamera HP di Kasir
   const [isKasirScanning, setIsKasirScanning] = useState(false);
   const kasirScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
@@ -89,7 +87,6 @@ export default function KasirPage() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
 
-    // Supabase Realtime Subscription untuk kasir
     const channel = supabase
       .channel("public:tw_products_kasir")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
@@ -109,7 +106,6 @@ export default function KasirPage() {
     };
   }, [scanBuffer]);
 
-  // Toggle Scanner Kamera di Kasir
   const toggleKasirCamera = () => {
     if (isKasirScanning) {
       if (kasirScannerRef.current) {
@@ -146,7 +142,6 @@ export default function KasirPage() {
     return Number(product.retailPrice || product.sellPrice || 0);
   };
 
-  // Membuka Modal saat produk diklik di katalog / discan
   const handleOpenModal = (product: any) => {
     setSelectedProduct(product);
     setModalPriceType("retail");
@@ -155,7 +150,6 @@ export default function KasirPage() {
     setIsModalOpen(true);
   };
 
-  // Kalkulasi Qty dan Harga Berdasarkan Pilihan Modal
   const calculateModalResult = () => {
     if (!selectedProduct) return { qty: 1, unitPrice: 0, totalPrice: 0, buyPriceUnit: 0 };
 
@@ -193,7 +187,6 @@ export default function KasirPage() {
     return { qty, unitPrice, totalPrice, buyPriceUnit };
   };
 
-  // Konfirmasi Tambah ke Keranjang dari Modal
   const handleConfirmAddToCart = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
@@ -284,7 +277,6 @@ export default function KasirPage() {
       }
     }
 
-    // Menentukan status pembayaran secara akurat (Tunai, Transfer, atau Bon)
     let transactionStatus = "Tunai";
     if (paymentMethod === "transfer") {
       transactionStatus = "Transfer";
@@ -295,7 +287,6 @@ export default function KasirPage() {
     const transactionId = "TRX-" + Date.now();
     const resolvedCustomer = customerName.trim() ? customerName.trim() : (paymentMethod === "piutang" ? "Pelanggan Bon" : "Umum / Tunai");
 
-    // Payload murni yang aman dari error schema cache database
     const transaction = {
       id: transactionId,
       date: new Date().toISOString(),
@@ -304,17 +295,15 @@ export default function KasirPage() {
       total: totalCart,
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
-      status: transactionStatus, // Status konsisten: Tunai / Transfer / Bon
+      status: transactionStatus,
     };
 
-    // Simpan history transaksi ke Supabase
     const { error: saleError } = await supabase.from("tw_sales_history").insert([transaction]);
     if (saleError) {
       alert("Gagal mencatat riwayat omset: " + saleError.message);
       return;
     }
 
-    // Menyimpan versi lengkap dengan nama pelanggan ke localStorage
     const transactionWithCustomer = {
       ...transaction,
       customerName: resolvedCustomer,
@@ -322,7 +311,6 @@ export default function KasirPage() {
     const savedHistory = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
     localStorage.setItem("tw_sales_history", JSON.stringify([transactionWithCustomer, ...savedHistory]));
 
-    // Jika status Bon (Piutang), catat ke modul piutang (Supabase & localStorage)
     if (paymentMethod === "piutang") {
       const newDebtRecord = {
         id: "PIU-" + Date.now(),
@@ -335,18 +323,15 @@ export default function KasirPage() {
         status: "Belum Lunas",
       };
 
-      // Simpan ke Supabase tabel tw_debts dengan kunci lowercase sesuai skema SQL
       const { error: debtError } = await supabase.from("tw_debts").insert([newDebtRecord]);
       if (debtError) {
         console.error("Gagal mencatat piutang ke Supabase:", debtError.message);
       }
 
-      // Simpan juga ke localStorage sebagai cadangan offline
       const savedDebts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
       localStorage.setItem("kasirq_piutang", JSON.stringify([newDebtRecord, ...savedDebts]));
     }
 
-    // Catat otomatis ke database pelanggan agar muncul di modul Pelanggan
     const existingCustomers = JSON.parse(localStorage.getItem("tw_customers") || "[]");
     if (!existingCustomers.some((c: any) => c.name.toLowerCase() === resolvedCustomer.toLowerCase())) {
       const newCustRecord = {
@@ -358,7 +343,6 @@ export default function KasirPage() {
       localStorage.setItem("tw_customers", JSON.stringify([newCustRecord, ...existingCustomers]));
     }
 
-    // Update stok di Supabase untuk setiap produk di keranjang
     for (const cartItem of cart) {
       const currentProd = products.find((p) => p.skuCode === cartItem.skuCode);
       if (currentProd) {
@@ -372,7 +356,6 @@ export default function KasirPage() {
       }
     }
 
-    // Refresh data produk
     await loadProducts();
 
     setMessage(`✓ Transaksi Berhasil! Status (${transactionStatus}) & Pelanggan (${resolvedCustomer}) tercatat.`);
@@ -388,67 +371,69 @@ export default function KasirPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>KASIR POS</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>KASIR POS</span>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <button
             type="button"
             onClick={toggleKasirCamera}
-            style={{ background: isKasirScanning ? "#ef4444" : "#0284c7", color: "#fff", border: "none", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "bold", cursor: "pointer" }}
+            style={{ background: isKasirScanning ? "#DC2626" : "#0284C7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
           >
             {isKasirScanning ? "Tutup Kamera Scan" : "📷 Scan Kamera POS"}
           </button>
           <span
             className="tw-live-badge"
             style={{
-              backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-              color: isOnline ? "#10b981" : "#ef4444",
-              borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
             }}
           >
             <span
               className="tw-status-dot"
               style={{
-                backgroundColor: isOnline ? "#10b981" : "#ef4444",
-                boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
               }}
             />
-            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
+            {isOnline ? "ONLINE (Terhubung)" : "OFFLINE"}
           </span>
         </div>
       </header>
 
-      {/* CONTAINER KAMERA KASIR POS */}
       {isKasirScanning && (
-        <div style={{ margin: "15px 20px 0 20px", background: "#0b0d16", padding: "12px", borderRadius: "10px", border: "1px solid #38bdf8" }}>
-          <div style={{ color: "#38bdf8", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "8px" }}>📸 Arahkan Barcode / QR Produk ke Kamera POS:</div>
+        <div style={{ margin: "15px 20px 0 20px", background: "#FFFFFF", padding: "16px", borderRadius: "10px", border: "1px solid #CBD5E1", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+          <div style={{ color: "#0F172A", fontSize: "0.85rem", fontWeight: "600", marginBottom: "8px" }}>📸 Arahkan Barcode / QR Produk ke Kamera POS:</div>
           <div id="reader-kasir" style={{ width: "100%", maxWidth: "400px" }}></div>
         </div>
       )}
 
-      <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", padding: "20px" }}>
+      <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", padding: "24px" }}>
         
         {/* KOLOM KIRI: KATALOG PRODUK */}
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Katalog Produk &amp; Barang Curah</h3>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Katalog Produk &amp; Barang Curah</h3>
           </div>
 
           {message && (
-            <div style={{ padding: "10px", background: message.includes("❌") ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)", color: message.includes("❌") ? "#ef4444" : "#10b981", borderRadius: "8px", fontSize: "0.85rem", border: message.includes("❌") ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(16, 185, 129, 0.3)" }}>
+            <div style={{ padding: "12px", background: message.includes("❌") ? "#FEE2E2" : "#D1FAE5", color: message.includes("❌") ? "#991B1B" : "#065F46", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "600", border: message.includes("❌") ? "1px solid #FCA5A5" : "1px solid #A7F3D0" }}>
               {message}
             </div>
           )}
 
-          <div style={{ padding: "10px", background: "rgba(56, 189, 248, 0.03)", border: "1px dashed rgba(56, 189, 248, 0.4)", borderRadius: "8px" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>
+          {/* Kotak Remark / Informasi Scanner */}
+          <div style={{ padding: "12px 14px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: "8px" }}>
+            <span style={{ fontSize: "0.8rem", color: "#1E3A8A", fontWeight: "500", display: "block", lineHeight: "1.4" }}>
               💡 Gunakan Alat Scanner USB/OTG, Scan Kamera POS, atau Klik produk di bawah untuk mengatur takaran &amp; tingkat harga.
             </span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px", maxHeight: "380px", overflowY: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px", maxHeight: "380px", overflowY: "auto" }}>
             {products.length === 0 ? (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "30px", color: "var(--tw-muted)" }}>
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "30px", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
                 Belum ada produk aktif tersedia.
               </div>
             ) : (
@@ -458,24 +443,24 @@ export default function KasirPage() {
                   onClick={() => handleOpenModal(p)}
                   style={{
                     padding: "12px",
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px solid var(--tw-border)",
+                    background: "#F8FAFC",
+                    border: "1px solid #CBD5E1",
                     borderRadius: "8px",
                     cursor: "pointer",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
-                    gap: "6px"
+                    gap: "8px"
                   }}
                 >
                   <div>
-                    <span style={{ fontSize: "0.65rem", color: "#38bdf8", fontWeight: "bold" }}>{p.skuCode}</span>
-                    <strong style={{ fontSize: "0.85rem", color: "#fff", display: "block" }}>{p.name}</strong>
-                    <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Stok: {p.stock} {p.unit || "kg"}</span>
+                    <span style={{ fontSize: "0.75rem", color: "#0284C7", fontWeight: "600", display: "block" }}>{p.skuCode}</span>
+                    <span style={{ fontSize: "0.85rem", color: "#0F172A", display: "block", fontWeight: "600", marginTop: "2px" }}>{p.name}</span>
+                    <span style={{ fontSize: "0.75rem", color: "#475569", fontWeight: "500" }}>Stok: {p.stock} {p.unit || "kg"}</span>
                   </div>
-                  <div>
-                    <div style={{ fontSize: "0.75rem", color: "#10b981", fontWeight: "bold" }}>R: Rp {Number(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</div>
-                    <div style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: "bold" }}>G: Rp {Number(p.wholesalePrice || 0).toLocaleString("id-ID")}</div>
+                  <div style={{ borderTop: "1px solid #E2E8F0", paddingTop: "6px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ fontSize: "0.8rem", color: "#059669", fontWeight: "600" }}>R: Rp {Number(p.retailPrice || p.sellPrice || 0).toLocaleString("id-ID")}</span>
+                    <span style={{ fontSize: "0.8rem", color: "#D97706", fontWeight: "600" }}>G: Rp {Number(p.wholesalePrice || 0).toLocaleString("id-ID")}</span>
                   </div>
                 </div>
               ))
@@ -484,32 +469,32 @@ export default function KasirPage() {
         </div>
 
         {/* KOLOM KANAN: KERANJANG & CHECKOUT */}
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px", height: "fit-content" }}>
-          <h3 className="tw-card-title">Keranjang Belanja</h3>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", height: "fit-content", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+          <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Keranjang Belanja</h3>
 
           <div style={{ maxHeight: "220px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
             {cart.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "30px", color: "var(--tw-muted)", fontSize: "0.85rem" }}>
+              <div style={{ textAlign: "center", padding: "30px", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
                 Keranjang kosong.
               </div>
             ) : (
               cart.map((item, idx) => (
-                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", gap: "10px" }}>
+                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "8px", gap: "10px" }}>
                   <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: "0.8rem", color: "#fff", display: "block" }}>{item.name}</strong>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                      <small style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Qty: {item.qty} {item.unit || ""}</small>
+                    <span style={{ fontSize: "0.85rem", color: "#0F172A", display: "block", fontWeight: "600" }}>{item.name}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                      <span style={{ fontSize: "0.75rem", color: "#475569", fontWeight: "500" }}>Qty: {item.qty} {item.unit || ""}</span>
                       <select
                         value={item.priceMode || "retail"}
                         onChange={(e) => handleItemPriceModeChange(item.skuCode, e.target.value as "retail" | "wholesale")}
-                        style={{ fontSize: "0.65rem", padding: "2px 4px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--tw-border)", borderRadius: "4px", color: "#38bdf8" }}
+                        style={{ fontSize: "0.75rem", padding: "2px 6px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "4px", color: "#0284C7", fontWeight: "600" }}
                       >
-                        <option value="retail" style={{ background: "#090d16" }}>Retail</option>
-                        <option value="wholesale" style={{ background: "#090d16" }}>Grosir</option>
+                        <option value="retail">Retail</option>
+                        <option value="wholesale">Grosir</option>
                       </select>
                     </div>
                   </div>
-                  <span style={{ fontSize: "0.8rem", fontWeight: "bold", color: "#10b981" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: "700", color: "#059669" }}>
                     Rp {((item.sellPrice || 0) * item.qty).toLocaleString("id-ID")}
                   </span>
                 </div>
@@ -517,36 +502,36 @@ export default function KasirPage() {
             )}
           </div>
 
-          <div style={{ borderTop: "1px solid var(--tw-border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.1rem", fontWeight: "bold" }}>
+          <div style={{ borderTop: "2px solid #E2E8F0", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "1.05rem", fontWeight: "700", color: "#0F172A" }}>
               <span>Total Belanja:</span>
-              <span style={{ color: "#10b981" }}>Rp {totalCart.toLocaleString("id-ID")}</span>
+              <span style={{ color: "#059669" }}>Rp {totalCart.toLocaleString("id-ID")}</span>
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Metode Pembayaran</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Metode Pembayaran</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "8px",
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid var(--tw-border)",
+                  padding: "10px 12px",
+                  background: "#FFFFFF",
+                  border: "1px solid #CBD5E1",
                   borderRadius: "8px",
-                  color: "#fff",
+                  color: "#0F172A",
                   fontSize: "0.85rem",
-                  fontWeight: "bold",
+                  fontWeight: "500",
                 }}
               >
-                <option value="cash" style={{ background: "#090d16" }}>💵 Tunai</option>
-                <option value="piutang" style={{ background: "#090d16" }}>📝 Bon (Piutang)</option>
-                <option value="transfer" style={{ background: "#090d16" }}>💳 Transfer</option>
+                <option value="cash">💵 Tunai</option>
+                <option value="piutang">📝 Bon (Piutang)</option>
+                <option value="transfer">💳 Transfer</option>
               </select>
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: paymentMethod === "piutang" ? "#ef4444" : "var(--tw-muted)", marginBottom: "4px" }}>
+              <label style={{ display: "block", fontSize: "0.8rem", color: paymentMethod === "piutang" ? "#DC2626" : "#334155", marginBottom: "4px", fontWeight: "600" }}>
                 Nama Pelanggan {paymentMethod === "piutang" ? "(Wajib untuk Bon)" : "(Opsional)"}
               </label>
               <input
@@ -556,11 +541,13 @@ export default function KasirPage() {
                 onChange={(e) => setCustomerName(e.target.value)}
                 style={{
                   width: "100%",
-                  padding: "8px",
-                  background: paymentMethod === "piutang" ? "rgba(239, 68, 68, 0.05)" : "rgba(255,255,255,0.03)",
-                  border: paymentMethod === "piutang" ? "1px solid #ef4444" : "1px solid var(--tw-border)",
+                  padding: "10px 12px",
+                  background: paymentMethod === "piutang" ? "#FEF2F2" : "#FFFFFF",
+                  border: paymentMethod === "piutang" ? "1px solid #DC2626" : "1px solid #CBD5E1",
                   borderRadius: "8px",
-                  color: "#fff",
+                  color: "#0F172A",
+                  fontSize: "0.85rem",
+                  fontWeight: "500",
                 }}
               />
             </div>
@@ -568,18 +555,18 @@ export default function KasirPage() {
             {paymentMethod === "cash" && (
               <>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nominal Uang Tunai</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Nominal Uang Tunai</label>
                   <input
                     type="number"
                     placeholder="0"
                     value={payAmount}
                     onChange={(e) => setPayAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                    style={{ width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                    style={{ width: "100%", padding: "10px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                   />
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
-                  <span style={{ color: "var(--tw-muted)" }}>Kembalian:</span>
-                  <strong style={{ color: "#38bdf8" }}>Rp {changeAmount.toLocaleString("id-ID")}</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", fontWeight: "600" }}>
+                  <span style={{ color: "#475569" }}>Kembalian:</span>
+                  <span style={{ color: "#0284C7" }}>Rp {changeAmount.toLocaleString("id-ID")}</span>
                 </div>
               </>
             )}
@@ -589,10 +576,15 @@ export default function KasirPage() {
               className="tw-btn tw-btn-primary"
               style={{
                 padding: "12px",
-                fontWeight: "bold",
+                fontWeight: "600",
+                fontSize: "0.9rem",
                 marginTop: "6px",
                 cursor: "pointer",
-                background: paymentMethod === "piutang" ? "#ef4444" : "#10b981",
+                background: paymentMethod === "piutang" ? "#DC2626" : "#059669",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "8px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
               }}
             >
               Bayar &amp; Catat Transaksi
@@ -604,28 +596,28 @@ export default function KasirPage() {
 
       {/* MODAL PENGATURAN TAKARAN & HARGA */}
       {isModalOpen && selectedProduct && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ backgroundColor: "#0b0d16", border: "1px solid var(--tw-border)", borderRadius: "12px", width: "420px", padding: "24px", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}>
-            <h3 style={{ color: "#FFFFFF", marginTop: 0, marginBottom: "4px", fontSize: "1.1rem" }}>Atur Takaran &amp; Harga</h3>
-            <p style={{ color: "#38bdf8", fontSize: "0.85rem", fontWeight: "bold", marginBottom: "16px" }}>
-              {selectedProduct.name} <span style={{ color: "var(--tw-muted)", fontWeight: "normal" }}>(Stok: {selectedProduct.stock} {selectedProduct.unit || "kg"})</span>
-            </p>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: "16px" }}>
+          <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", width: "100%", maxWidth: "420px", padding: "24px", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <span style={{ color: "#0F172A", display: "block", marginBottom: "4px", fontSize: "1.1rem", fontWeight: "600" }}>Atur Takaran &amp; Harga</span>
+            <span style={{ color: "#0284C7", display: "block", fontSize: "0.85rem", fontWeight: "600", marginBottom: "16px" }}>
+              {selectedProduct.name} <span style={{ color: "#64748B", fontWeight: "400" }}>(Stok: {selectedProduct.stock} {selectedProduct.unit || "kg"})</span>
+            </span>
 
-            <form onSubmit={handleConfirmAddToCart} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <form onSubmit={handleConfirmAddToCart} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "6px" }}>Pilih Level Harga</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "6px", fontWeight: "600" }}>Pilih Level Harga</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                   <button
                     type="button"
                     onClick={() => setModalPriceType("retail")}
                     style={{
-                      padding: "8px",
+                      padding: "10px",
                       borderRadius: "6px",
-                      border: modalPriceType === "retail" ? "1px solid #10b981" : "1px solid var(--tw-border)",
-                      background: modalPriceType === "retail" ? "rgba(16, 185, 129, 0.15)" : "rgba(255,255,255,0.02)",
-                      color: modalPriceType === "retail" ? "#10b981" : "var(--tw-muted)",
+                      border: modalPriceType === "retail" ? "2px solid #059669" : "1px solid #CBD5E1",
+                      background: modalPriceType === "retail" ? "#D1FAE5" : "#F8FAFC",
+                      color: modalPriceType === "retail" ? "#065F46" : "#475569",
                       fontSize: "0.8rem",
-                      fontWeight: "bold",
+                      fontWeight: "600",
                       cursor: "pointer",
                     }}
                   >
@@ -635,13 +627,13 @@ export default function KasirPage() {
                     type="button"
                     onClick={() => setModalPriceType("wholesale")}
                     style={{
-                      padding: "8px",
+                      padding: "10px",
                       borderRadius: "6px",
-                      border: modalPriceType === "wholesale" ? "1px solid #f59e0b" : "1px solid var(--tw-border)",
-                      background: modalPriceType === "wholesale" ? "rgba(245, 158, 11, 0.15)" : "rgba(255,255,255,0.02)",
-                      color: modalPriceType === "wholesale" ? "#f59e0b" : "var(--tw-muted)",
+                      border: modalPriceType === "wholesale" ? "2px solid #D97706" : "1px solid #CBD5E1",
+                      background: modalPriceType === "wholesale" ? "#FEF3C7" : "#F8FAFC",
+                      color: modalPriceType === "wholesale" ? "#92400E" : "#475569",
                       fontSize: "0.8rem",
-                      fontWeight: "bold",
+                      fontWeight: "600",
                       cursor: "pointer",
                     }}
                   >
@@ -651,8 +643,8 @@ export default function KasirPage() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "6px" }}>Pilih Takaran / Qty ({selectedProduct.unit || "kg"})</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "6px", fontWeight: "600" }}>Pilih Takaran / Qty ({selectedProduct.unit || "kg"})</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "8px" }}>
                   {[
                     { label: "1/5 (0.2)", val: "1/5" },
                     { label: "1/4 (0.25)", val: "1/4" },
@@ -666,13 +658,13 @@ export default function KasirPage() {
                       type="button"
                       onClick={() => setQtyMode(btn.val)}
                       style={{
-                        padding: "8px",
+                        padding: "10px",
                         borderRadius: "6px",
-                        border: qtyMode === btn.val ? "1px solid #38bdf8" : "1px solid var(--tw-border)",
-                        background: qtyMode === btn.val ? "rgba(56, 189, 248, 0.2)" : "rgba(255,255,255,0.02)",
-                        color: qtyMode === btn.val ? "#38bdf8" : "#fff",
-                        fontSize: "0.75rem",
-                        fontWeight: "bold",
+                        border: qtyMode === btn.val ? "2px solid #0284C7" : "1px solid #CBD5E1",
+                        background: qtyMode === btn.val ? "#E0F2FE" : "#F8FAFC",
+                        color: qtyMode === btn.val ? "#0369A1" : "#0F172A",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
                         cursor: "pointer",
                       }}
                     >
@@ -689,32 +681,32 @@ export default function KasirPage() {
                     placeholder="Masukkan jumlah bebas (misal: 1.5)"
                     value={customQty}
                     onChange={(e) => setCustomQty(e.target.value)}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", backgroundColor: "#090d16", border: "1px solid #38bdf8", color: "#FFF", fontSize: "0.9rem", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", backgroundColor: "#FFFFFF", border: "1px solid #0284C7", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500", boxSizing: "border-box" }}
                   />
                 )}
               </div>
 
-              <div style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--tw-border)" }}>
+              <div style={{ padding: "14px", background: "#F1F5F9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #CBD5E1" }}>
                 <div>
-                  <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)", display: "block" }}>Subtotal ({modalPriceType.toUpperCase()}):</span>
-                  <strong style={{ fontSize: "0.85rem", color: "#38bdf8" }}>{modalPreview.qty} {selectedProduct.unit || "unit"}</strong>
+                  <span style={{ fontSize: "0.8rem", color: "#475569", display: "block", fontWeight: "500" }}>Subtotal ({modalPriceType.toUpperCase()}):</span>
+                  <span style={{ fontSize: "0.85rem", color: "#0284C7", fontWeight: "600" }}>{modalPreview.qty} {selectedProduct.unit || "unit"}</span>
                 </div>
-                <strong style={{ fontSize: "1.1rem", color: "#10b981" }}>
+                <span style={{ fontSize: "1.1rem", color: "#059669", fontWeight: "700" }}>
                   Rp {modalPreview.totalPrice.toLocaleString("id-ID")}
-                </strong>
+                </span>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "4px" }}>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  style={{ background: "transparent", border: "1px solid var(--tw-border)", color: "var(--tw-muted)", borderRadius: "6px", padding: "8px 14px", cursor: "pointer", fontSize: "0.8rem" }}
+                  style={{ background: "transparent", border: "1px solid #CBD5E1", color: "#475569", borderRadius: "6px", padding: "10px 16px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "600" }}
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  style={{ background: "#0284c7", border: "none", color: "#FFFFFF", borderRadius: "6px", padding: "8px 16px", fontWeight: "bold", cursor: "pointer", fontSize: "0.8rem" }}
+                  style={{ background: "#0284C7", border: "none", color: "#FFFFFF", borderRadius: "6px", padding: "10px 20px", fontWeight: "600", cursor: "pointer", fontSize: "0.8rem" }}
                 >
                   Masukkan Keranjang
                 </button>

@@ -77,7 +77,6 @@ export default function PiutangPage() {
   useEffect(() => {
     loadDebts();
 
-    // Cek apakah ada pesan sukses yang disimpan sebelum reload halaman
     const savedMsg = sessionStorage.getItem("piutang_success_msg");
     if (savedMsg) {
       setSuccessNotice(savedMsg);
@@ -160,7 +159,6 @@ export default function PiutangPage() {
       console.error("Gagal catat keuangan:", err);
     }
 
-    // Simpan pesan ke session storage lalu reload halaman secara mutlak agar banner dijamin muncul
     const msg = `✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`;
     sessionStorage.setItem("piutang_success_msg", msg);
     
@@ -178,39 +176,42 @@ export default function PiutangPage() {
           left: "20px",
           zIndex: 9999,
           padding: "14px 20px",
-          background: "#10b981",
+          background: "#059669",
           color: "#ffffff",
           borderRadius: "10px",
           fontSize: "0.9rem",
-          boxShadow: "0 10px 25px rgba(16, 185, 129, 0.4)",
+          fontWeight: "600",
+          boxShadow: "0 10px 25px rgba(5, 150, 105, 0.3)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          border: "1px solid rgba(255,255,255,0.3)"
+          border: "1px solid #A7F3D0"
         }}>
-          <span style={{ fontWeight: "bold" }}>{successNotice}</span>
-          <button onClick={() => setSuccessNotice("")} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>✕</button>
+          <span>{successNotice}</span>
+          <button onClick={() => setSuccessNotice("")} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1rem", fontWeight: "600" }}>✕</button>
         </div>
       )}
 
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>MANAJEMEN PIUTANG &amp; PELUNASAN</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>MANAJEMEN PIUTANG &amp; PELUNASAN</span>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
             className="tw-live-badge"
             style={{
-              backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-              color: isOnline ? "#10b981" : "#ef4444",
-              borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
             }}
           >
             <span
               className="tw-status-dot"
               style={{
-                backgroundColor: isOnline ? "#10b981" : "#ef4444",
-                boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
               }}
             />
             {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
@@ -218,29 +219,29 @@ export default function PiutangPage() {
         </div>
       </header>
 
-      <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="tw-content" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
         {payModalData && (
-          <div className="tw-card" style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 className="tw-card-title" style={{ margin: 0, color: "#38bdf8" }}>Form Pelunasan Bon: {payModalData.customername || payModalData.customerName}</h3>
-              <button type="button" onClick={() => setPayModalData(null)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1rem" }}>✕</button>
+              <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Form Pelunasan Bon: {payModalData.customername || payModalData.customerName}</h3>
+              <button type="button" onClick={() => setPayModalData(null)} style={{ background: "transparent", border: "none", color: "#64748B", cursor: "pointer", fontSize: "1rem", fontWeight: "600" }}>✕</button>
             </div>
-            <div style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>
-              Total Sisa Piutang: <strong style={{ color: "#ef4444" }}>Rp {Number(payModalData.remainingamount ?? payModalData.remainingAmount ?? payModalData.amount ?? 0).toLocaleString("id-ID")}</strong>
+            <div style={{ fontSize: "0.85rem", color: "#475569", fontWeight: "500" }}>
+              Total Sisa Piutang: <span style={{ color: "#DC2626", fontWeight: "600" }}>Rp {Number(payModalData.remainingamount ?? payModalData.remainingAmount ?? payModalData.amount ?? 0).toLocaleString("id-ID")}</span>
             </div>
-            <form onSubmit={handlePelunasanSubmit} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <form onSubmit={handlePelunasanSubmit} style={{ display: "flex", gap: "12px", alignItems: "center" }}>
               <input
                 type="number"
                 placeholder="Masukkan nominal bayar..."
                 value={payAmount}
                 onChange={(e) => setPayAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
+                style={{ flex: 1, padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
               />
               <button 
                 type="submit" 
                 className="tw-btn tw-btn-primary" 
-                style={{ padding: "8px 16px", fontWeight: "bold", cursor: "pointer", background: "#10b981", border: "none", color: "#fff", borderRadius: "6px" }}
+                style={{ padding: "9px 16px", fontWeight: "600", cursor: "pointer", background: "#059669", border: "none", color: "#fff", borderRadius: "8px", fontSize: "0.85rem" }}
               >
                 Simpan Pelunasan
               </button>
@@ -248,27 +249,27 @@ export default function PiutangPage() {
           </div>
         )}
 
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan ({debts.length})</h3>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+          <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Piutang Pelanggan ({debts.length})</h3>
 
           <div style={{ overflowX: "auto", maxHeight: "500px", overflowY: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--tw-border)", color: "var(--tw-muted)" }}>
-                  <th style={{ padding: "10px" }}>ID Trx / Tanggal Bon</th>
-                  <th style={{ padding: "10px" }}>Nama Pelanggan</th>
-                  <th style={{ padding: "10px" }}>Total Piutang</th>
-                  <th style={{ padding: "10px" }}>Sudah Dibayar</th>
-                  <th style={{ padding: "10px" }}>Sisa Piutang</th>
-                  <th style={{ padding: "10px" }}>Jatuh Tempo (7 Hari)</th>
-                  <th style={{ padding: "10px" }}>Status</th>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Aksi</th>
+                <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#334155" }}>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>ID Trx / Tanggal Bon</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Nama Pelanggan</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Total Piutang</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Sudah Dibayar</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Sisa Piutang</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Jatuh Tempo (7 Hari)</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Status</th>
+                  <th style={{ padding: "10px", textAlign: "center", fontWeight: "600" }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {debts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--tw-muted)" }}>
+                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
                       Belum ada catatan bon atau piutang pelanggan. Transaksi bon dari kasir akan muncul otomatis di sini.
                     </td>
                   </tr>
@@ -287,25 +288,25 @@ export default function PiutangPage() {
                     const rem = Number(item.remainingamount ?? item.remainingAmount ?? amt);
 
                     return (
-                      <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9", transition: "background 0.2s" }}>
                         <td style={{ padding: "10px" }}>
-                          <strong style={{ color: "#38bdf8", display: "block" }}>{tId}</strong>
-                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{dateVal ? new Date(dateVal).toLocaleString("id-ID") : "-"}</small>
+                          <span style={{ color: "#0284C7", display: "block", fontSize: "0.8rem", fontWeight: "600" }}>{tId}</span>
+                          <span style={{ color: "#64748B", fontSize: "0.75rem", fontWeight: "500" }}>{dateVal ? new Date(dateVal).toLocaleString("id-ID") : "-"}</span>
                         </td>
-                        <td style={{ padding: "10px", color: "#fff", fontWeight: "bold" }}>{cName}</td>
-                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {amt.toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {paid.toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#ef4444", fontWeight: "bold" }}>Rp {rem.toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#0F172A", fontWeight: "600" }}>{cName}</td>
+                        <td style={{ padding: "10px", color: "#D97706", fontWeight: "600" }}>Rp {amt.toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#059669", fontWeight: "600" }}>Rp {paid.toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#DC2626", fontWeight: "600" }}>Rp {rem.toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px" }}>
-                          <div style={{ fontSize: "0.75rem", color: "#fff" }}>{dueDate.toLocaleDateString("id-ID")}</div>
+                          <div style={{ fontSize: "0.8rem", color: "#0F172A", fontWeight: "500" }}>{dueDate.toLocaleDateString("id-ID")}</div>
                           {!isPaidOff && (
-                            <span style={{ fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px", background: isOverdue ? "rgba(239, 68, 68, 0.2)" : isDueSoon ? "rgba(245, 158, 11, 0.2)" : "rgba(56, 189, 248, 0.1)", color: isOverdue ? "#ef4444" : isDueSoon ? "#f59e0b" : "#38bdf8" }}>
+                            <span style={{ fontSize: "0.7rem", fontWeight: "600", padding: "2px 6px", borderRadius: "4px", display: "inline-block", marginTop: "3px", background: isOverdue ? "#FEE2E2" : isDueSoon ? "#FEF3C7" : "#E0F2FE", color: isOverdue ? "#991B1B" : isDueSoon ? "#B45309" : "#0369A1" }}>
                               {isOverdue ? `Terlambat ${Math.abs(diffDays)} hari` : `${diffDays} hari lagi`}
                             </span>
                           )}
                         </td>
                         <td style={{ padding: "10px" }}>
-                          <span style={{ padding: "3px 8px", background: isPaidOff ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isPaidOff ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
+                          <span style={{ padding: "3px 8px", background: isPaidOff ? "#D1FAE5" : "#FEE2E2", color: isPaidOff ? "#065F46" : "#991B1B", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600" }}>
                             {isPaidOff ? "Terbayar" : "Belum Lunas"}
                           </span>
                         </td>
@@ -314,7 +315,7 @@ export default function PiutangPage() {
                             <button
                               type="button"
                               onClick={() => setPayModalData(item)}
-                              style={{ padding: "4px 10px", background: "#10b981", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                              style={{ padding: "4px 10px", background: "#059669", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600" }}
                             >
                               Lunasi
                             </button>

@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --tw-bg: #ffffff;             /* Background utama tetap putih */
-  --tw-card-bg: #0f172a;        /* Card dikembalikan menjadi warna gelap */
-  --tw-border: #e2e8f0;         /* Warna border halaman */
-  --tw-text: #1e293b;           /* Warna teks utama gelap */
-  --tw-muted: #64748b;          /* Warna teks sekunder/muted */
-  --tw-primary: #0284c7;        
-  --tw-primary-hover: #0369a1;
+  --tw-bg: #F8FAFC;              /* Background utama putih lembut bersih */
+  --tw-card-bg: #FFFFFF;         /* Card warna putih bersih */
+  --tw-border: #E2E8F0;          /* Warna border halaman */
+  --tw-text: #1E293B;            /* Warna teks utama gelap */
+  --tw-muted: #64748B;           /* Warna teks sekunder/muted */
+  --tw-primary: #8B5CF6;         /* Warna utama Ungu Gradasi Modern */
+  --tw-primary-hover: #7C3AED;   /* Warna hover Ungu */
 }
 
 * {
@@ -37,15 +37,17 @@ body {
   width: 100%;
 }
 
-/* SIDEBAR STYLES */
+/* SIDEBAR STYLES (Nuansa Light Clean Modern) */
 .tw-sidebar {
   width: 260px;
-  background-color: #f8fafc;
-  border-right: 1px solid #e2e8f0;
+  background-color: #FFFFFF;
+  border-right: 1px solid #E2E8F0;
   display: flex;
   flex-direction: column;
   padding: 20px;
   flex-shrink: 0;
+  color: #1E293B;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
 }
 
 .tw-brand {
@@ -58,13 +60,13 @@ body {
 
 .tw-brand-copy strong {
   display: block;
-  color: #0f172a;
+  color: #0F172A;
   font-size: 0.95rem;
   letter-spacing: 0.5px;
 }
 
 .tw-brand-copy small {
-  color: #0284c7;
+  color: #8B5CF6;
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 1px;
@@ -84,34 +86,38 @@ body {
   gap: 4px;
 }
 
+/* Styling Navbar Link: Tanpa card standby, transparan 10-20% saat di-hover/aktif */
 .tw-nav-link {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  color: #475569;
+  color: #0F172A !important; /* Warna teks hitam bersih */
   text-decoration: none;
   border-radius: 8px;
   font-size: 0.88rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  background: transparent; /* Benar-benar transparan saat tidak diakses (tidak ada card standby) */
+  border: 1px solid transparent;
+  transition: all 0.2s ease-in-out;
 }
 
 .tw-nav-link:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: #0f172a;
+  background: rgba(15, 23, 42, 0.12); /* Efek card gradasi/solid gelap dengan transparansi sekitar 12% */
+  color: #0F172A !important;
 }
 
 .tw-nav-link.tw-nav-active {
-  background: rgba(2, 132, 199, 0.1);
-  color: #0284c7;
-  border: 1px solid rgba(2, 132, 199, 0.3);
+  background: rgba(15, 23, 42, 0.18); /* Efek card aktif dengan transparansi sekitar 18% */
+  color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  font-weight: 600;
 }
 
 .tw-sidebar-bottom {
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #E2E8F0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -137,22 +143,22 @@ body {
 
 .tw-topbar {
   height: 64px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #E2E8F0;
   padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
 }
 
 .tw-breadcrumb {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #64748B;
 }
 
 .tw-breadcrumb strong {
-  color: #0f172a;
+  color: #0F172A;
 }
 
 .tw-live-badge {
@@ -171,20 +177,20 @@ body {
   flex: 1;
 }
 
-/* CARDS & FORM UI (GELAP) */
+/* CARDS & FORM UI (LIGHT CLEAN) */
 .tw-card {
   background-color: var(--tw-card-bg) !important;
-  border: 1px solid #1e293b !important;
+  border: 1px solid #E2E8F0 !important;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  color: #f8fafc !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  color: #1E293B !important;
 }
 
 .tw-card-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #ffffff !important;
+  color: #0F172A !important;
 }
 
 .tw-btn {
@@ -197,7 +203,7 @@ body {
 
 .tw-btn-primary {
   background-color: var(--tw-primary);
-  color: #ffffff;
+  color: #FFFFFF;
 }
 
 .tw-btn-primary:hover {
@@ -206,18 +212,18 @@ body {
 }
 
 input, select, textarea {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
   border-radius: 8px;
   padding: 10px 12px;
-  color: #0f172a;
+  color: #0F172A;
   font-size: 0.88rem;
   outline: none;
   transition: border-color 0.2s ease;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: #0284c7;
+  border-color: #8B5CF6;
 }
 
 /* ========================================================
@@ -231,7 +237,7 @@ input:focus, select:focus, textarea:focus {
   .tw-sidebar {
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #E2E8F0;
     padding: 10px 14px;
     gap: 0;
   }
@@ -313,39 +319,20 @@ input:focus, select:focus, textarea:focus {
     padding: 16px !important;
   }
 }
-/* Kustomisasi Scrollbar Transparan & Tipis untuk Kartu Gelap */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-/* Scrollbar Transparan dengan Efek Autohide (Hilang Saat Tidak Digulir) */
+/* ========================================================
+    SCROLLBAR TRANSPARAN OTOMATIS & DINAMIS MENGIKUTI KURSOR
+    ======================================================== */
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.3s ease;
 }
 
-*:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
-}
-
-/* Untuk browser berbasis Webkit (Chrome, Edge, Safari) */
+/* Sembunyikan scrollbar sepenuhnya saat tidak digulir, tampilkan saat di-hover/digulir */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -355,14 +342,11 @@ input:focus, select:focus, textarea:focus {
 ::-webkit-scrollbar-thumb {
   background: transparent; /* Transparan total saat diam */
   border-radius: 4px;
-  transition: background 0.3s ease;
+  transition: background 0.2s ease;
 }
 
-/* Munculkan scrollbar tipis hanya saat kursor diarahkan ke area scroll (hover) */
-*:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
-}
-
+/* Munculkan scrollbar secara halus mengikuti area kursor saat elemen di-hover */
+*:hover::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(100, 116, 139, 0.45); /* Warna semi-transparan elegan */
 }

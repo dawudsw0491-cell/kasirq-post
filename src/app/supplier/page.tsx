@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function SupplierPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -10,7 +11,25 @@ export default function SupplierPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
+  const loadSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tw_suppliers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setSuppliers(data);
+        localStorage.setItem("tw_suppliers", JSON.stringify(data));
+      } else {
+        fallbackLoadLocal();
+      }
+    } catch (e) {
+      fallbackLoadLocal();
+    }
+  };
+
+  const fallbackLoadLocal = () => {
     const saved = localStorage.getItem("tw_suppliers");
     if (saved) {
       try {
@@ -19,6 +38,10 @@ export default function SupplierPage() {
         setSuppliers([]);
       }
     }
+  };
+
+  useEffect(() => {
+    loadSuppliers();
 
     setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
@@ -26,25 +49,44 @@ export default function SupplierPage() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
+    // Supabase Realtime Subscription untuk sinkronisasi supplier
+    const channel = supabase
+      .channel("public:tw_suppliers")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_suppliers" }, () => {
+        loadSuppliers();
+      })
+      .subscribe();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  const handleAddSupplier = (e: React.FormEvent) => {
+  const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) {
       alert("Mohon lengkapi Nama Supplier dan No. Telepon!");
       return;
     }
 
+    const supplierId = "SUP-" + Date.now();
     const newSupplier = {
-      id: Date.now(),
-      name,
-      contact: contact || "-",
-      phone,
+      id: supplierId,
+      name: name.trim(),
+      contact: contact.trim() || "-",
+      phone: phone.trim(),
+      created_at: new Date().toISOString(),
     };
+
+    // Simpan ke Supabase Cloud
+    const { error } = await supabase.from("tw_suppliers").insert([newSupplier]);
+
+    if (error) {
+      alert("Gagal menyimpan ke Cloud Database: " + error.message);
+      return;
+    }
 
     const updated = [newSupplier, ...suppliers];
     setSuppliers(updated);
@@ -61,109 +103,111 @@ export default function SupplierPage() {
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       <header className="tw-topbar">
         <div className="tw-breadcrumb">
-          <strong>MANAJEMEN SUPPLIER</strong>
+          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>MANAJEMEN SUPPLIER</span>
         </div>
         <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span
             className="tw-live-badge"
             style={{
-              backgroundColor: isOnline ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-              color: isOnline ? "#10b981" : "#ef4444",
-              borderColor: isOnline ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)",
+              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+              color: isOnline ? "#065F46" : "#991B1B",
+              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+              fontSize: "0.75rem",
+              fontWeight: "600"
             }}
           >
             <span
               className="tw-status-dot"
               style={{
-                backgroundColor: isOnline ? "#10b981" : "#ef4444",
-                boxShadow: isOnline ? "0 0 8px #10b981" : "0 0 8px #ef4444",
+                backgroundColor: isOnline ? "#059669" : "#DC2626",
+                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
               }}
             />
-            {isOnline ? "ONLINE" : "OFFLINE"}
+            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
           </span>
         </div>
       </header>
 
-      <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "20px", padding: "20px" }}>
+      <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "20px", padding: "24px" }}>
         
         {/* FORM TAMBAH SUPPLIER */}
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px", height: "fit-content" }}>
-          <h3 className="tw-card-title">Tambah Supplier Baru</h3>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", height: "fit-content", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+          <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Tambah Supplier Baru</h3>
 
           {message && (
-            <div style={{ padding: "10px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem" }}>
+            <div style={{ padding: "12px", background: "#D1FAE5", color: "#065F46", borderRadius: "8px", fontSize: "0.85rem", fontWeight: "600", border: "1px solid #A7F3D0" }}>
               ✓ {message}
             </div>
           )}
 
           <form onSubmit={handleAddSupplier} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Nama Supplier</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Nama Supplier</label>
               <input
                 type="text"
                 placeholder="Contoh: Merchant Online/Offline..."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
               />
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>Alamat Supplier</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>Alamat Supplier</label>
               <input
                 type="text"
                 placeholder="Contoh: Kota/Provinsi..."
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
               />
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.8rem", color: "var(--tw-muted)", marginBottom: "4px" }}>No. Telepon / WhatsApp</label>
+              <label style={{ display: "block", fontSize: "0.8rem", color: "#334155", marginBottom: "4px", fontWeight: "600" }}>No. Telepon / WhatsApp</label>
               <input
                 type="text"
                 placeholder="Contoh: 08129876xxxx"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                style={{ width: "100%" }}
+                style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
               />
             </div>
 
-            <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "12px", fontWeight: "bold", marginTop: "8px" }}>
+            <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "12px", fontWeight: "600", marginTop: "8px", cursor: "pointer", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontSize: "0.9rem" }}>
               Simpan Supplier
             </button>
           </form>
         </div>
 
         {/* TABEL DATA SUPPLIER */}
-        <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Supplier</h3>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Supplier ({suppliers.length})</h3>
           </div>
 
           <div style={{ overflowX: "auto", maxHeight: "450px", overflowY: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--tw-border)", color: "var(--tw-muted)" }}>
-                  <th style={{ padding: "10px" }}>Nama Supplier</th>
-                  <th style={{ padding: "10px" }}>Kontak Person</th>
-                  <th style={{ padding: "10px" }}>No. Telepon</th>
+                <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#334155" }}>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Nama Supplier</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>Alamat / Kontak</th>
+                  <th style={{ padding: "10px", fontWeight: "600" }}>No. Telepon</th>
                 </tr>
               </thead>
               <tbody>
                 {suppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={3} style={{ padding: "30px", textAlign: "center", color: "var(--tw-muted)" }}>
+                    <td colSpan={3} style={{ padding: "30px", textAlign: "center", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
                       Belum ada data supplier terdaftar.
                     </td>
                   </tr>
                 ) : (
                   suppliers.map((s, idx) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                      <td style={{ padding: "10px", fontWeight: "bold", color: "#fff" }}>{s.name}</td>
-                      <td style={{ padding: "10px", color: "var(--tw-muted)" }}>{s.contact}</td>
-                      <td style={{ padding: "10px", color: "#38bdf8" }}>{s.phone}</td>
+                    <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9", transition: "background 0.2s" }}>
+                      <td style={{ padding: "10px", fontWeight: "600", color: "#0F172A" }}>{s.name}</td>
+                      <td style={{ padding: "10px", color: "#64748B", fontWeight: "500" }}>{s.contact || "-"}</td>
+                      <td style={{ padding: "10px", color: "#0284C7", fontWeight: "600" }}>{s.phone || "-"}</td>
                     </tr>
                   ))
                 )}

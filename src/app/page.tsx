@@ -25,7 +25,6 @@ export default function DashboardPage() {
     let debts: any[] = [];
 
     try {
-      // 1. Ambil data produk dari Supabase
       const { data: prodData } = await supabase.from("tw_products").select("*");
       if (prodData) {
         products = prodData;
@@ -34,7 +33,6 @@ export default function DashboardPage() {
         products = JSON.parse(localStorage.getItem("tw_products") || "[]");
       }
 
-      // 2. Ambil data penjualan dari Supabase
       const { data: salesData } = await supabase.from("tw_sales_history").select("*");
       if (salesData) {
         rawSales = salesData;
@@ -43,7 +41,6 @@ export default function DashboardPage() {
         rawSales = JSON.parse(localStorage.getItem("tw_sales_history") || "[]");
       }
 
-      // 3. Ambil data piutang dari Supabase (tw_debts)
       const { data: debtData } = await supabase.from("tw_debts").select("*");
       if (debtData) {
         debts = debtData;
@@ -57,13 +54,11 @@ export default function DashboardPage() {
       debts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
     }
 
-    // Pemetaan status pembayaran dan pengecekan apakah bon sudah terbayar/lunas di tw_debts
     const sales = rawSales.map((s: any) => {
       const statusText = (s.status || "").toLowerCase();
       const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
       const isTransfer = statusText.includes("transfer");
 
-      // Cek status pelunasan dari data debts (tw_debts)
       const matchingDebt = debts.find((d: any) => d.trxid === s.id || d.trxId === s.id || d.id === s.id);
       const isDebtPaidOff = matchingDebt && (matchingDebt.status === "Terbayar" || matchingDebt.status === "Lunas" || Number(matchingDebt.remainingamount ?? matchingDebt.remainingAmount ?? 0) <= 0);
 
@@ -95,7 +90,6 @@ export default function DashboardPage() {
       }
     });
 
-    // Total piutang aktif hanya menghitung item yang statusnya belum lunas/terbayar
     const activeDebts = debts
       .filter((d: any) => {
         const st = (d.status || "").toLowerCase();
@@ -121,7 +115,6 @@ export default function DashboardPage() {
   useEffect(() => {
     loadDashboardData();
 
-    // Supabase Realtime Subscriptions untuk Dashboard
     const prodChannel = supabase
       .channel("public:tw_products_dash")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
@@ -157,28 +150,28 @@ export default function DashboardPage() {
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
       
-      {/* RUNNING TEXT ATAS */}
+      {/* RUNNING TEXT ATAS (Hitam Gradasi Gelap & Putih Bersih Menyala) */}
       <div 
         style={{
-          background: "linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #38bdf8 100%)",
-          color: "#ffffff",
-          padding: "12px 0",
+          background: "linear-gradient(135deg, #090D16 0%, #1E293B 50%, #020617 100%)",
+          color: "#FFFFFF", // Putih bersih menyala
+          padding: "14px 0",
           overflow: "hidden",
           whiteSpace: "nowrap",
           position: "relative",
-          boxShadow: "0 4px 20px rgba(2, 132, 199, 0.4)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.2)"
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5)",
+          borderBottom: "2px solid #334155"
         }}
       >
         <div 
           style={{
             display: "inline-block",
             animation: "marqueeLoop 28s linear infinite",
-            fontWeight: "800",
-            fontSize: "0.9rem",
+            fontWeight: "600",
+            fontSize: "0.95rem",
             letterSpacing: "1.5px",
             textTransform: "uppercase",
-            textShadow: "0 2px 5px rgba(0,0,0,0.4)"
+            textShadow: "0 0 10px rgba(255, 255, 255, 0.4)"
           }}
         >
           <span>✨ SELAMAT DATANG DI {storeName.toUpperCase()} — PUSAT MANAJEMEN RETAIL &amp; KASIR DIGITAL TERINTEGRASI SUPABASE ✨ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🚀 KELOLA STOK, OMSET, PROFIT, DAN PIUTANG PELANGGAN SECARA REAL-TIME 🚀 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 💼 SIAP MELAYANI TRANSAKSI PENJUALAN HARIAN LINTAS PERANGKAT 💼</span>
@@ -199,33 +192,37 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="tw-content" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
-        {/* KARTU STATISTIK UTAMA */}
+        {/* KARTU STATISTIK UTAMA (WARNA LATAR SOLID) */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           
-          <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #38BDF8", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
-            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: "600" }}>Total Omset Penjualan</span>
-            <strong style={{ fontSize: "1.4rem", color: "#FFFFFF", letterSpacing: "0.3px" }}>Rp {stats.totalRevenue.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "#CBD5E1" }}>Dari {stats.totalSales} nota transaksi</span>
+          {/* Kartu 1: Omset Penjualan (Solid Toska Tua) */}
+          <div style={{ backgroundColor: "#0D9488", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: "600", opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Omset Penjualan</span>
+            <strong style={{ fontSize: "1.5rem", fontWeight: "700", letterSpacing: "0.5px" }}>Rp {stats.totalRevenue.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", fontWeight: "500", opacity: 0.9 }}>Dari {stats.totalSales} nota transaksi</span>
           </div>
 
-          <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #34D399", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
-            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: "600" }}>Estimasi Keuntungan (Profit)</span>
-            <strong style={{ fontSize: "1.4rem", color: "#FFFFFF", letterSpacing: "0.3px" }}>Rp {stats.totalProfit.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "#CBD5E1" }}>Akumulasi margin jual - modal</span>
+          {/* Kartu 2: Keuntungan / Profit (Solid Biru Korporat) */}
+          <div style={{ backgroundColor: "#0284C7", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: "600", opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.5px" }}>Estimasi Keuntungan (Profit)</span>
+            <strong style={{ fontSize: "1.5rem", fontWeight: "700", letterSpacing: "0.5px" }}>Rp {stats.totalProfit.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", fontWeight: "500", opacity: 0.9 }}>Akumulasi margin jual - modal</span>
           </div>
 
-          <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #F59E0B", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
-            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: "600" }}>Total Piutang / Bon Aktif</span>
-            <strong style={{ fontSize: "1.4rem", color: "#FFFFFF", letterSpacing: "0.3px" }}>Rp {stats.totalDebts.toLocaleString("id-ID")}</strong>
-            <Link href="/piutang" style={{ fontSize: "0.7rem", color: "#38bdf8", textDecoration: "none", fontWeight: "bold" }}>Kelola &amp; Lunasi Bon →</Link>
+          {/* Kartu 3: Piutang / Bon Aktif (Solid Amber/Oranye Gelap) */}
+          <div style={{ backgroundColor: "#D97706", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: "600", opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Piutang / Bon Aktif</span>
+            <strong style={{ fontSize: "1.5rem", fontWeight: "700", letterSpacing: "0.5px" }}>Rp {stats.totalDebts.toLocaleString("id-ID")}</strong>
+            <Link href="/piutang" style={{ fontSize: "0.75rem", color: "#FEF3C7", textDecoration: "underline", fontWeight: "600" }}>Kelola &amp; Lunasi Bon →</Link>
           </div>
 
-          <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #06B6D4", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
-            <span style={{ fontSize: "0.75rem", color: "#94A3B8", fontWeight: "600" }}>Total Katalog Produk</span>
-            <strong style={{ fontSize: "1.4rem", color: "#FFFFFF", letterSpacing: "0.3px" }}>{stats.totalProducts} Item</strong>
-            <span style={{ fontSize: "0.7rem", color: "#CBD5E1" }}>{lowStockItems.length} item stok menipis</span>
+          {/* Kartu 4: Katalog Produk (Solid Ungu Tua) */}
+          <div style={{ backgroundColor: "#7C3AED", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: "600", opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Katalog Produk</span>
+            <strong style={{ fontSize: "1.5rem", fontWeight: "700", letterSpacing: "0.5px" }}>{stats.totalProducts} Item</strong>
+            <span style={{ fontSize: "0.75rem", fontWeight: "500", opacity: 0.9 }}>{lowStockItems.length} item stok menipis</span>
           </div>
 
         </div>
@@ -233,35 +230,36 @@ export default function DashboardPage() {
         {/* SECTION PERINGATAN LOW STOCK & TRANSAKSI TERAKHIR */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
           
-          <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
+          {/* Card Stok Menipis */}
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0, fontSize: "0.95rem", color: lowStockItems.length > 0 ? "#F87171" : "#34D399", fontWeight: "700" }}>
+              <h3 style={{ margin: 0, fontSize: "0.95rem", color: lowStockItems.length > 0 ? "#DC2626" : "#059669", fontWeight: "800" }}>
                 ⚠️ Peringatan Stok Menipis ({lowStockItems.length})
               </h3>
             </div>
 
             <div style={{ overflowX: "auto", maxHeight: "280px", overflowY: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #1E293B", color: "#94A3B8" }}>
-                    <th style={{ padding: "8px" }}>Kode SKU</th>
-                    <th style={{ padding: "8px" }}>Nama Barang</th>
-                    <th style={{ padding: "8px", textAlign: "right" }}>Sisa Stok</th>
+                  <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#334155" }}>
+                    <th style={{ padding: "10px", fontWeight: "800" }}>Kode SKU</th>
+                    <th style={{ padding: "10px", fontWeight: "800" }}>Nama Barang</th>
+                    <th style={{ padding: "10px", textAlign: "right", fontWeight: "800" }}>Sisa Stok</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lowStockItems.length === 0 ? (
                     <tr>
-                      <td colSpan={3} style={{ padding: "20px", textAlign: "center", color: "#CBD5E1" }}>
+                      <td colSpan={3} style={{ padding: "20px", textAlign: "center", color: "#64748B", fontWeight: "600" }}>
                         ✓ Aman! Semua stok produk berada di atas batas minimum.
                       </td>
                     </tr>
                   ) : (
                     lowStockItems.map((item, idx) => (
-                      <tr key={idx} style={{ borderBottom: "1px solid rgba(30, 41, 59, 0.6)" }}>
-                        <td style={{ padding: "8px", color: "#38bdf8", fontWeight: "600" }}>{item.skuCode}</td>
-                        <td style={{ padding: "8px", color: "#FFFFFF", fontWeight: "bold" }}>{item.name}</td>
-                        <td style={{ padding: "8px", textAlign: "right", color: "#F87171", fontWeight: "bold" }}>{item.stock} {item.unit || "pcs"}</td>
+                      <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                        <td style={{ padding: "10px", color: "#0284C7", fontWeight: "700" }}>{item.skuCode}</td>
+                        <td style={{ padding: "10px", color: "#0F172A", fontWeight: "800" }}>{item.name}</td>
+                        <td style={{ padding: "10px", textAlign: "right", color: "#DC2626", fontWeight: "900" }}>{item.stock} {item.unit || "pcs"}</td>
                       </tr>
                     ))
                   )}
@@ -270,22 +268,23 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
-            <h3 style={{ margin: 0, fontSize: "0.95rem", color: "#FFFFFF", fontWeight: "700" }}>Aktivitas Penjualan Terakhir</h3>
+          {/* Card Aktivitas Penjualan Terakhir */}
+          <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
+            <h3 style={{ margin: 0, fontSize: "0.95rem", color: "#0F172A", fontWeight: "800" }}>Aktivitas Penjualan Terakhir</h3>
 
             <div style={{ overflowX: "auto", maxHeight: "280px", overflowY: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #1E293B", color: "#94A3B8" }}>
-                    <th style={{ padding: "8px" }}>ID Trx / Waktu</th>
-                    <th style={{ padding: "8px" }}>Status Pembayaran</th>
-                    <th style={{ padding: "8px", textAlign: "right" }}>Total (Rp)</th>
+                  <tr style={{ borderBottom: "2px solid #E2E8F0", color: "#334155" }}>
+                    <th style={{ padding: "10px", fontWeight: "800" }}>ID Trx / Waktu</th>
+                    <th style={{ padding: "10px", fontWeight: "800" }}>Status Pembayaran</th>
+                    <th style={{ padding: "10px", textAlign: "right", fontWeight: "800" }}>Total (Rp)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentSales.length === 0 ? (
                     <tr>
-                      <td colSpan={3} style={{ padding: "20px", textAlign: "center", color: "#CBD5E1" }}>
+                      <td colSpan={3} style={{ padding: "20px", textAlign: "center", color: "#64748B", fontWeight: "600" }}>
                         Belum ada riwayat transaksi penjualan kasir.
                       </td>
                     </tr>
@@ -297,24 +296,24 @@ export default function DashboardPage() {
                       const isTransfer = method === "Transfer";
                       
                       return (
-                        <tr key={idx} style={{ borderBottom: "1px solid rgba(30, 41, 59, 0.6)" }}>
-                          <td style={{ padding: "8px" }}>
-                            <strong style={{ color: "#38bdf8", display: "block" }}>{sale.id}</strong>
-                            <small style={{ color: "#CBD5E1", fontSize: "0.7rem" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</small>
+                        <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                          <td style={{ padding: "10px" }}>
+                            <strong style={{ color: "#0284C7", display: "block", fontWeight: "800" }}>{sale.id}</strong>
+                            <small style={{ color: "#64748B", fontSize: "0.75rem", fontWeight: "600" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</small>
                           </td>
-                          <td style={{ padding: "8px" }}>
+                          <td style={{ padding: "10px" }}>
                             <span style={{ 
-                              padding: "2px 6px", 
-                              borderRadius: "4px", 
-                              background: isBon ? "rgba(239, 68, 68, 0.2)" : isTerbayar ? "rgba(16, 185, 129, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
-                              color: isBon ? "#F87171" : isTerbayar ? "#34D399" : isTransfer ? "#38BDF8" : "#34D399", 
-                              fontSize: "0.7rem", 
-                              fontWeight: "bold" 
+                              padding: "3px 8px", 
+                              borderRadius: "6px", 
+                              background: isBon ? "#FEE2E2" : isTerbayar ? "#D1FAE5" : isTransfer ? "#E0F2FE" : "#D1FAE5", 
+                              color: isBon ? "#991B1B" : isTerbayar ? "#065F46" : isTransfer ? "#0369A1" : "#065F46", 
+                              fontSize: "0.75rem", 
+                              fontWeight: "900" 
                             }}>
                               {method}
                             </span>
                           </td>
-                          <td style={{ padding: "8px", textAlign: "right", color: "#FBBF24", fontWeight: "bold" }}>
+                          <td style={{ padding: "10px", textAlign: "right", color: "#D97706", fontWeight: "900" }}>
                             Rp {(sale.total || 0).toLocaleString("id-ID")}
                           </td>
                         </tr>
