@@ -82,7 +82,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v2")
+      .channel("public:tw_debts_autosync_v4")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -123,7 +123,8 @@ export default function PiutangPage() {
 
     const newPaid = currentPaid + payNum;
     const newRemaining = totalAmount - newPaid;
-    const newStatus = newRemaining <= 0 ? "Lunas" : "Belum Lunas";
+    // Status otomatis berubah menjadi "Terbayar" jika sisa piutang habis
+    const newStatus = newRemaining <= 0 ? "Terbayar" : "Belum Lunas";
 
     const { error: updateError } = await supabase
       .from("tw_debts")
@@ -142,6 +143,7 @@ export default function PiutangPage() {
     const custName = payModalData.customername || payModalData.customerName || "Pelanggan";
     const tId = payModalData.trxid || payModalData.trxId || payModalData.id;
 
+    // Integrasi otomatis masuk ke modul Keuangan (tw_finances)
     const financeRecord = {
       id: "INC-" + Date.now(),
       date: new Date().toISOString(),
@@ -173,7 +175,7 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    setMessage(`✓ Pelunasan sebesar Rp ${payNum.toLocaleString("id-ID")} berhasil dicatat & masuk ke Laporan Keuangan!`);
+    setMessage(`✓ Pelunasan Rp ${payNum.toLocaleString("id-ID")} berhasil dicatat, status diperbarui menjadi Terbayar & masuk Laporan Keuangan!`);
     setPayModalData(null);
     setPayAmount("");
     setTimeout(() => setMessage(""), 4000);
@@ -258,8 +260,9 @@ export default function PiutangPage() {
                   debts.map((item, idx) => {
                     const dateVal = item.date || item.created_at;
                     const { dueDate, diffDays } = getDueDateStatus(dateVal);
-                    const isOverdue = diffDays < 0 && item.status !== "Lunas";
-                    const isDueSoon = diffDays >= 0 && diffDays <= 2 && item.status !== "Lunas";
+                    const isPaidOff = item.status === "Terbayar" || item.status === "Lunas";
+                    const isOverdue = diffDays < 0 && !isPaidOff;
+                    const isDueSoon = diffDays >= 0 && diffDays <= 2 && !isPaidOff;
                     
                     const tId = item.trxid || item.trxId || item.id;
                     const cName = item.customername || item.customerName || "Pelanggan";
@@ -279,19 +282,19 @@ export default function PiutangPage() {
                         <td style={{ padding: "10px", color: "#ef4444", fontWeight: "bold" }}>Rp {rem.toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px" }}>
                           <div style={{ fontSize: "0.75rem", color: "#fff" }}>{dueDate.toLocaleDateString("id-ID")}</div>
-                          {item.status !== "Lunas" && (
+                          {!isPaidOff && (
                             <span style={{ fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px", background: isOverdue ? "rgba(239, 68, 68, 0.2)" : isDueSoon ? "rgba(245, 158, 11, 0.2)" : "rgba(56, 189, 248, 0.1)", color: isOverdue ? "#ef4444" : isDueSoon ? "#f59e0b" : "#38bdf8" }}>
                               {isOverdue ? `Terlambat ${Math.abs(diffDays)} hari` : `${diffDays} hari lagi`}
                             </span>
                           )}
                         </td>
                         <td style={{ padding: "10px" }}>
-                          <span style={{ padding: "3px 8px", background: item.status === "Lunas" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: item.status === "Lunas" ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
-                            {item.status || "Belum Lunas"}
+                          <span style={{ padding: "3px 8px", background: isPaidOff ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isPaidOff ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
+                            {isPaidOff ? "Terbayar" : "Belum Lunas"}
                           </span>
                         </td>
                         <td style={{ padding: "10px", textAlign: "center" }}>
-                          {item.status !== "Lunas" && (
+                          {!isPaidOff && (
                             <button
                               type="button"
                               onClick={() => setPayModalData(item)}
