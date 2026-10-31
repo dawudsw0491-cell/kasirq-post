@@ -105,8 +105,7 @@ export default function PiutangPage() {
     return { dueDate, diffDays };
   };
 
-  const handlePelunasanSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePelunasanSubmit = async () => {
     if (!payModalData || payAmount === "" || Number(payAmount) <= 0) {
       alert("Masukkan nominal pelunasan yang valid!");
       return;
@@ -206,12 +205,12 @@ export default function PiutangPage() {
           <div className="tw-card" style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 className="tw-card-title" style={{ margin: 0, color: "#38bdf8" }}>Form Pelunasan Bon: {payModalData.customername || payModalData.customerName}</h3>
-              <button onClick={() => setPayModalData(null)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1rem" }}>✕</button>
+              <button type="button" onClick={() => setPayModalData(null)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1rem" }}>✕</button>
             </div>
             <div style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>
               Total Sisa Piutang: <strong style={{ color: "#ef4444" }}>Rp {Number(payModalData.remainingamount ?? payModalData.remainingAmount ?? payModalData.amount ?? 0).toLocaleString("id-ID")}</strong>
             </div>
-            <form onSubmit={handlePelunasanSubmit} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
               <input
                 type="number"
                 placeholder="Masukkan nominal bayar..."
@@ -219,10 +218,15 @@ export default function PiutangPage() {
                 onChange={(e) => setPayAmount(e.target.value === "" ? "" : Number(e.target.value))}
                 style={{ flex: 1, padding: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tw-border)", borderRadius: "8px", color: "#fff" }}
               />
-              <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "8px 16px", fontWeight: "bold", cursor: "pointer" }}>
+              <button 
+                type="button" 
+                onClick={handlePelunasanSubmit} 
+                className="tw-btn tw-btn-primary" 
+                style={{ padding: "8px 16px", fontWeight: "bold", cursor: "pointer", background: "#10b981", border: "none", color: "#fff", borderRadius: "6px" }}
+              >
                 Simpan Pelunasan
               </button>
-            </form>
+            </div>
           </div>
         )}
 
@@ -289,6 +293,7 @@ export default function PiutangPage() {
                         <td style={{ padding: "10px", textAlign: "center" }}>
                           {item.status !== "Lunas" && (
                             <button
+                              type="button"
                               onClick={() => setPayModalData(item)}
                               style={{ padding: "4px 10px", background: "#10b981", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
                             >
