@@ -57,12 +57,19 @@ export default function DashboardPage() {
       debts = JSON.parse(localStorage.getItem("kasirq_piutang") || "[]");
     }
 
+    // Memetakan status pembayaran secara akurat sesuai input kasir (Tunai, Transfer, Bon)
     const sales = rawSales.map((s: any) => {
-      const method = s.paymentMethod || s.paymentType || "tunai";
-      const isBon = method === "bon" || method === "piutang" || (s.pay === 0 && s.customerName && s.customerName !== "Umum");
+      const statusText = (s.status || "").toLowerCase();
+      const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
+      const isTransfer = statusText.includes("transfer");
+
+      let resolvedMethod = "Tunai";
+      if (isBon) resolvedMethod = "Bon";
+      else if (isTransfer) resolvedMethod = "Transfer";
+
       return {
         ...s,
-        paymentMethod: isBon ? "bon" : "tunai"
+        paymentMethod: resolvedMethod,
       };
     });
 
@@ -182,7 +189,7 @@ export default function DashboardPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
-        {/* KARTU STATISTIK UTAMA (Background Gelap Solid, Teks Kontras Tinggi) */}
+        {/* KARTU STATISTIK UTAMA */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           
           <div style={{ backgroundColor: "#0B0F19", border: "1px solid #1E293B", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #38BDF8", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)" }}>
@@ -259,7 +266,7 @@ export default function DashboardPage() {
                 <thead>
                   <tr style={{ borderBottom: "1px solid #1E293B", color: "#94A3B8" }}>
                     <th style={{ padding: "8px" }}>ID Trx / Waktu</th>
-                    <th style={{ padding: "8px" }}>Metode</th>
+                    <th style={{ padding: "8px" }}>Status Pembayaran</th>
                     <th style={{ padding: "8px", textAlign: "right" }}>Total (Rp)</th>
                   </tr>
                 </thead>
@@ -272,7 +279,10 @@ export default function DashboardPage() {
                     </tr>
                   ) : (
                     recentSales.map((sale, idx) => {
-                      const isBon = sale.paymentMethod === "bon";
+                      const method = sale.paymentMethod;
+                      const isBon = method === "Bon";
+                      const isTransfer = method === "Transfer";
+                      
                       return (
                         <tr key={idx} style={{ borderBottom: "1px solid rgba(30, 41, 59, 0.6)" }}>
                           <td style={{ padding: "8px" }}>
@@ -280,8 +290,15 @@ export default function DashboardPage() {
                             <small style={{ color: "#CBD5E1", fontSize: "0.7rem" }}>{sale.date ? new Date(sale.date).toLocaleString("id-ID") : "-"}</small>
                           </td>
                           <td style={{ padding: "8px" }}>
-                            <span style={{ padding: "2px 6px", borderRadius: "4px", background: isBon ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)", color: isBon ? "#F87171" : "#34D399", fontSize: "0.7rem", fontWeight: "bold" }}>
-                              {isBon ? "BON / Piutang" : "Tunai"}
+                            <span style={{ 
+                              padding: "2px 6px", 
+                              borderRadius: "4px", 
+                              background: isBon ? "rgba(239, 68, 68, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
+                              color: isBon ? "#F87171" : isTransfer ? "#38BDF8" : "#34D399", 
+                              fontSize: "0.7rem", 
+                              fontWeight: "bold" 
+                            }}>
+                              {method}
                             </span>
                           </td>
                           <td style={{ padding: "8px", textAlign: "right", color: "#FBBF24", fontWeight: "bold" }}>
