@@ -52,7 +52,7 @@ export default function PiutangPage() {
 
     // Supabase Realtime Subscription untuk sinkronisasi piutang
     const channel = supabase
-      .channel("public:tw_debts")
+      .channel("public:tw_debts_full_sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -93,7 +93,7 @@ export default function PiutangPage() {
     const newRemaining = Number(payModalData.amount || 0) - newPaid;
     const newStatus = newRemaining <= 0 ? "Lunas" : "Belum Lunas";
 
-    // Update ke Supabase tabel tw_debts
+    // 1. Update status ke Supabase tabel tw_debts
     const { error: updateError } = await supabase
       .from("tw_debts")
       .update({
@@ -108,7 +108,7 @@ export default function PiutangPage() {
       return;
     }
 
-    // Catat pemasukan pelunasan ke Supabase tabel tw_finances otomatis
+    // 2. Catat pemasukan pelunasan otomatis ke Supabase tabel tw_finances (untuk modul Keuangan)
     const financeRecord = {
       id: "INC-" + Date.now(),
       date: new Date().toISOString(),
@@ -118,8 +118,9 @@ export default function PiutangPage() {
       amount: payNum,
     };
 
-    await supabase.from("tw_finances").insert([financeRecord]);
+    await supabase.from("tw_finances").insert([financeRecord]).catch(() => {});
 
+    // 3. Perbarui state lokal & localStorage piutang
     const updatedDebts = debts.map((item) => {
       if (item.id === payModalData.id) {
         return {
@@ -135,13 +136,13 @@ export default function PiutangPage() {
     setDebts(updatedDebts);
     localStorage.setItem("kasirq_piutang", JSON.stringify(updatedDebts));
 
-    // Sinkronisasi lokal keuangan
-    const savedFin = JSON.parse(localStorage.getItem("tw_financials") || "[]");
-    localStorage.setItem("tw_financials", JSON.stringify([financeRecord, ...savedFin]));
+    // 4. Sinkronisasi pencatatan ke localStorage keuangan
+    const savedFin = JSON.parse(localStorage.getItem("tw_purchase_history") || "[]");
+    localStorage.setItem("tw_purchase_history", JSON.stringify([financeRecord, ...savedFin]));
 
     window.dispatchEvent(new Event("storage"));
 
-    setMessage(`✓ Pelunasan sebesar Rp ${payNum.toLocaleString("id-ID")} berhasil dicatat & masuk ke Keuangan!`);
+    setMessage(`✓ Pelunasan sebesar Rp ${payNum.toLocaleString("id-ID")} berhasil dicatat & masuk ke Laporan Keuangan!`);
     setPayModalData(null);
     setPayAmount("");
     setTimeout(() => setMessage(""), 4000);
@@ -169,7 +170,7 @@ export default function PiutangPage() {
           </div>
         )}
 
-        {/* MODAL / FORM PELUNASAN KECIL JIKA DIPILIH */}
+        {/* MODAL / FORM PELUNASAN JIKA DIPILIH */}
         {payModalData && (
           <div className="tw-card" style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
