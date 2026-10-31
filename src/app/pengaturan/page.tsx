@@ -250,31 +250,32 @@ export default function PengaturanPage() {
     }
   };
 
-  // FULL RESET: MENGHAPUS DATABASE CLOUD SUPABASE DAN LOCAL STORAGE KESELURUHAN
+  // FULL RESET: MENGHAPUS STOK, SKU, DATABASE CLOUD SUPABASE DAN LOCAL STORAGE KESELURUHAN
   const handleFullReset = async () => {
     const confirmReset = confirm(
-      "PERINGATAN DENGAN AKSES PENUH:\n\nSeluruh data di SUPABASE CLOUD DATABASE (riwayat penjualan, omset, stok barang, produk SKU, piutang, hutang, keuangan) & MEMORI LOCAL STORAGE akan DIHAPUS TOTAL dari nol.\n\nApakah Anda yakin ingin melakukan Full Reset?"
+      "PERINGATAN DENGAN AKSES PENUH:\n\nSeluruh data stok barang, master SKU, riwayat penjualan, omset, piutang, hutang, dan keuangan di SUPABASE CLOUD DATABASE & LOCAL STORAGE akan DIHAPUS TOTAL dari nol.\n\nApakah Anda yakin ingin melakukan Full Reset?"
     );
     if (!confirmReset) return;
 
     setLoadingReset(true);
 
     try {
-      // 1. HAPUS DATA SECARA PERMANEN DI CLOUD DATABASE SUPABASE
+      // 1. HAPUS & BERSIHKAN DATA DI CLOUD DATABASE SUPABASE (Termasuk Produk & Stok)
       await supabase.from("tw_sales_history").delete().neq("id", "0");
       await supabase.from("tw_products").delete().neq("skuCode", "0");
       
-      // Opsional: Hapus tabel pendukung lainnya jika terdaftar di Supabase
+      // Bersihkan tabel master SKU jika ada di Supabase
       try {
+        await supabase.from("tw_master_sku").delete().neq("skuCode", "0");
         await supabase.from("tw_customers").delete().neq("id", "0");
         await supabase.from("tw_suppliers").delete().neq("id", "0");
         await supabase.from("tw_debts").delete().neq("id", "0");
         await supabase.from("tw_finances").delete().neq("id", "0");
       } catch (errDb) {
-        // Abaikan jika tabel pendukung belum dibuat di Supabase
+        // Abaikan jika tabel pendukung belum ada
       }
 
-      // 2. HAPUS SELURUH KEY LOCAL STORAGE BROWSER
+      // 2. HAPUS SELURUH KEY LOCAL STORAGE TERKAIT STOK & PRODUK
       const keysToRemove = [
         "tw_master_sku",
         "tw_products",
@@ -298,21 +299,23 @@ export default function PengaturanPage() {
         localStorage.removeItem(key);
       });
 
-      // Iterasi pembersihan cadangan
+      // Iterasi pembersihan cadangan seluruh memori lokal
       const allKeys = Object.keys(localStorage);
       allKeys.forEach((key) => {
-        if (
-          key.startsWith("tw_") ||
-          key.startsWith("kasirq_")
-        ) {
-          if (key !== "tw_store_name" && key !== "tw_app_name" && key !== "tw_store_address" && key !== "tw_store_phone") {
+        if (key.startsWith("tw_") || key.startsWith("kasirq_")) {
+          if (
+            key !== "tw_store_name" &&
+            key !== "tw_app_name" &&
+            key !== "tw_store_address" &&
+            key !== "tw_store_phone"
+          ) {
             localStorage.removeItem(key);
           }
         }
       });
 
       window.dispatchEvent(new Event("storage"));
-      alert("✓ BERHASIL FULL RESET! Seluruh data di Cloud Supabase & Local Storage telah bersih total (0).");
+      alert("✓ BERHASIL FULL RESET! Seluruh stok barang, master SKU, dan data Cloud Supabase telah bersih total (0).");
       window.location.reload();
     } catch (err: any) {
       alert("Gagal mereset data Supabase Cloud: " + (err.message || err));
