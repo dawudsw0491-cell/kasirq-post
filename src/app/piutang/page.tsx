@@ -82,7 +82,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v5")
+      .channel("public:tw_debts_autosync_v6")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -173,14 +173,13 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    // Set notice/pesan sukses yang jelas dan mencolok
-    setMessage(`✓ BERHASIL! Pelunasan piutang sebesar Rp ${payNum.toLocaleString("id-ID")} telah dicatat, status menjadi Terbayar, & masuk Laporan Keuangan.`);
-    
+    // Notifikasi instan via alert agar user mendapatkan kepastian aksi tombol nyata
+    const successMsg = `✓ BERHASIL! Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} telah disimpan. Status: ${newStatus}. Masuk Laporan Keuangan.`;
+    alert(successMsg);
+    setMessage(successMsg);
+
     setPayModalData(null);
     setPayAmount("");
-    
-    // Auto-hide notice setelah 5 detik
-    setTimeout(() => setMessage(""), 5000);
     loadDebts();
   };
 
@@ -199,11 +198,11 @@ export default function PiutangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
-        {/* NOTICE / NOTIFIKASI BERHASIL */}
+        {/* BANNER NOTICE PERMANEN HINGGA DITUTUP */}
         {message && (
           <div style={{ padding: "14px 18px", background: "rgba(16, 185, 129, 0.2)", color: "#34d399", borderRadius: "10px", fontSize: "0.9rem", border: "1px solid rgba(16, 185, 129, 0.5)", fontWeight: "bold", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span>{message}</span>
-            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#34d399", cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}>✕</button>
+            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#34d399", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold", marginLeft: "10px" }}>✕</button>
           </div>
         )}
 
@@ -228,7 +227,7 @@ export default function PiutangPage() {
                 type="button" 
                 onClick={handlePelunasanSubmit} 
                 className="tw-btn tw-btn-primary" 
-                style={{ padding: "8px 16px", fontWeight: "bold", cursor: "pointer", background: "#10b981", border: "none", color: "#fff", borderRadius: "6px" }}
+                style={{ padding: "10px 20px", fontWeight: "bold", cursor: "pointer", background: "#10b981", border: "none", color: "#fff", borderRadius: "6px" }}
               >
                 Simpan Pelunasan
               </button>
