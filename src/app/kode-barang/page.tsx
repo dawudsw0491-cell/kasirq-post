@@ -66,7 +66,7 @@ export default function KodeBarangPage() {
 
     // Supabase Realtime Subscription untuk sinkronisasi otomatis
     const channel = supabase
-      .channel("public:tw_products")
+      .channel("public:tw_products_kode")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_products" }, () => {
         loadProducts();
       })
@@ -133,9 +133,9 @@ export default function KodeBarangPage() {
     if (found) {
       setName(found.name || "");
       setCategory(found.category || "Sembako");
-      setBuyPrice(found.buyPrice || "");
-      setRetailPrice(found.retailPrice || found.sellPrice || "");
-      setWholesalePrice(found.wholesalePrice || "");
+      setBuyPrice(found.buyPrice !== undefined ? found.buyPrice : "");
+      setRetailPrice(found.retailPrice !== undefined ? found.retailPrice : (found.sellPrice !== undefined ? found.sellPrice : ""));
+      setWholesalePrice(found.wholesalePrice !== undefined ? found.wholesalePrice : "");
       setStock(found.stock !== undefined ? found.stock : "");
       setUnit(found.unit || "kg");
       setMessage(`ℹ️ SKU "${val}" sudah terdaftar. Mode Update aktif.`);
@@ -179,14 +179,14 @@ export default function KodeBarangPage() {
       buyPrice: buyPrice === "" ? 0 : Number(buyPrice),
       retailPrice: Number(retailPrice),
       wholesalePrice: Number(wholesalePrice),
-      sellPrice: Number(retailPrice),
       stock: parsedStockValue,
       unit: unit || "kg",
       isActive: true,
       status: "active",
+      updated_at: new Date().toISOString(),
     };
 
-    // Simpan ke Supabase Cloud
+    // Simpan ke Supabase Cloud menggunakan tabel tw_products yang benar
     const { error } = await supabase.from("tw_products").upsert([productPayload], { onConflict: "skuCode" });
     
     if (error) {
@@ -373,7 +373,7 @@ export default function KodeBarangPage() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Harga Modal</label>
+                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--tw-muted)", marginBottom: "3px" }}>Harga Modal (buyPrice)</label>
                 <input
                   type="number"
                   placeholder="0"
