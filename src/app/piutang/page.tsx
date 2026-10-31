@@ -52,7 +52,7 @@ export default function PiutangPage() {
         }
       }
 
-      setDebts(fetchedDebts);
+      setDebts([...fetchedDebts]);
       localStorage.setItem("kasirq_piutang", JSON.stringify(fetchedDebts));
     } catch (e) {
       fallbackLoadLocal();
@@ -85,7 +85,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v9")
+      .channel("public:tw_debts_autosync_v12")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -157,6 +157,7 @@ export default function PiutangPage() {
 
     await supabase.from("tw_finances").insert([financeRecord]).catch(() => {});
 
+    // Update state lokal secara langsung
     const updatedDebts = debts.map((item) => {
       if (item.id === payModalData.id) {
         return {
@@ -177,14 +178,15 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    // 1. Tutup modal form pelunasan dengan benar menggunakan setPayModalData(null)
+    // Tutup modal form dan reset input
     setPayModalData(null);
     setPayAmount("");
 
-    // 2. Set state message agar banner sukses langsung ter-render di DOM
+    // Set pesan notice dan pastikan layar discroll ke atas agar langsung terlihat
     setMessage(`✓ Pelunasan piutang Rp ${payNum.toLocaleString("id-ID")} untuk ${custName} berhasil disimpan! Status: ${newStatus}.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // 3. Reload data dari database tanpa mengganggu state message
+    // Panggil loadDebts secara asinkron tanpa menimpa pesan notice
     await loadDebts();
   };
 
@@ -217,7 +219,7 @@ export default function PiutangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
-        {/* BANNER NOTICE: Ditempatkan paling atas di dalam tw-content agar langsung terlihat */}
+        {/* BANNER NOTICE: Berada di paling atas kontainer */}
         {message && (
           <div style={{ padding: "12px 16px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>{message}</span>
