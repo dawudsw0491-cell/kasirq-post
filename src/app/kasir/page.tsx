@@ -296,6 +296,7 @@ export default function KasirPage() {
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
       status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
+      // CATATAN: customerName dihapus sepenuhnya dari payload ini agar tidak error di Supabase schema cache
     };
 
     // Simpan history transaksi ke Supabase
