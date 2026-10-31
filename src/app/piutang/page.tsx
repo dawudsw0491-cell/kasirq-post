@@ -82,7 +82,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v4")
+      .channel("public:tw_debts_autosync_v5")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -123,7 +123,6 @@ export default function PiutangPage() {
 
     const newPaid = currentPaid + payNum;
     const newRemaining = totalAmount - newPaid;
-    // Status otomatis berubah menjadi "Terbayar" jika sisa piutang habis
     const newStatus = newRemaining <= 0 ? "Terbayar" : "Belum Lunas";
 
     const { error: updateError } = await supabase
@@ -143,7 +142,6 @@ export default function PiutangPage() {
     const custName = payModalData.customername || payModalData.customerName || "Pelanggan";
     const tId = payModalData.trxid || payModalData.trxId || payModalData.id;
 
-    // Integrasi otomatis masuk ke modul Keuangan (tw_finances)
     const financeRecord = {
       id: "INC-" + Date.now(),
       date: new Date().toISOString(),
@@ -175,10 +173,14 @@ export default function PiutangPage() {
 
     window.dispatchEvent(new Event("storage"));
 
-    setMessage(`✓ Pelunasan Rp ${payNum.toLocaleString("id-ID")} berhasil dicatat, status diperbarui menjadi Terbayar & masuk Laporan Keuangan!`);
+    // Set notice/pesan sukses yang jelas dan mencolok
+    setMessage(`✓ BERHASIL! Pelunasan piutang sebesar Rp ${payNum.toLocaleString("id-ID")} telah dicatat, status menjadi Terbayar, & masuk Laporan Keuangan.`);
+    
     setPayModalData(null);
     setPayAmount("");
-    setTimeout(() => setMessage(""), 4000);
+    
+    // Auto-hide notice setelah 5 detik
+    setTimeout(() => setMessage(""), 5000);
     loadDebts();
   };
 
@@ -197,9 +199,11 @@ export default function PiutangPage() {
 
       <div className="tw-content" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
+        {/* NOTICE / NOTIFIKASI BERHASIL */}
         {message && (
-          <div style={{ padding: "12px", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderRadius: "8px", fontSize: "0.85rem", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-            {message}
+          <div style={{ padding: "14px 18px", background: "rgba(16, 185, 129, 0.2)", color: "#34d399", borderRadius: "10px", fontSize: "0.9rem", border: "1px solid rgba(16, 185, 129, 0.5)", fontWeight: "bold", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>{message}</span>
+            <button onClick={() => setMessage("")} style={{ background: "transparent", border: "none", color: "#34d399", cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}>✕</button>
           </div>
         )}
 
