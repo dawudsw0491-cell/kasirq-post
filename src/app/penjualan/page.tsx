@@ -19,14 +19,21 @@ export default function PenjualanPage() {
 
   const loadData = async () => {
     try {
-      const { data, error } = await supabase
+      // 1. Ambil data penjualan dari tw_sales_history
+      const { data: salesData, error: salesError } = await supabase
         .from("tw_sales_history")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        processAndSetSales(data);
-        localStorage.setItem("tw_sales_history", JSON.stringify(data));
+      // 2. Ambil data piutang dari tw_debts untuk cek status pelunasan terkini
+      const { data: debtData } = await supabase.from("tw_debts").select("*");
+
+      if (!salesError && salesData) {
+        processAndSetSales(salesData, debtData || []);
+        localStorage.setItem("tw_sales_history", JSON.stringify(salesData));
+        if (debtData) {
+          localStorage.setItem("kasirq_piutang", JSON.stringify(debtData));
+        }
       } else {
         fallbackLoadLocal();
       }
@@ -48,15 +55,22 @@ export default function PenjualanPage() {
     }
   };
 
-  const processAndSetSales = (parsed: any[]) => {
-    const normalized = parsed.map((s: any) => {
+  const processAndSetSales = (parsedSales: any[], parsedDebts: any[]) => {
+    const normalized = parsedSales.map((s: any) => {
       const statusText = (s.status || "").toLowerCase();
       const isBon = statusText.includes("bon") || statusText.includes("piutang") || statusText.includes("unpaid");
       const isTransfer = statusText.includes("transfer");
 
+      // Cek apakah transaksi bon ini sudah dilunasi di tabel tw_debts
+      const matchingDebt = parsedDebts.find((d: any) => d.trxid === s.id || d.trxId === s.id || d.id === s.id);
+      const isPaidOff = matchingDebt && (matchingDebt.status === "Terbayar" || matchingDebt.status === "Lunas" || Number(matchingDebt.remainingamount ?? matchingDebt.remainingAmount ?? 0) <= 0);
+
       let resolvedMethod = "tunai";
-      if (isBon) resolvedMethod = "bon";
-      else if (isTransfer) resolvedMethod = "transfer";
+      if (isBon) {
+        resolvedMethod = isPaidOff ? "terbayar" : "bon";
+      } else if (isTransfer) {
+        resolvedMethod = "transfer";
+      }
 
       return {
         ...s,
@@ -68,10 +82,12 @@ export default function PenjualanPage() {
 
   const fallbackLoadLocal = () => {
     const savedSales = localStorage.getItem("tw_sales_history");
+    const savedDebts = localStorage.getItem("kasirq_piutang");
     if (savedSales) {
       try {
-        const parsed = JSON.parse(savedSales);
-        processAndSetSales(parsed);
+        const parsedSales = JSON.parse(savedSales);
+        const parsedDebts = savedDebts ? JSON.parse(savedDebts) : [];
+        processAndSetSales(parsedSales, parsedDebts);
       } catch (e) {
         setSales([]);
       }
@@ -89,10 +105,17 @@ export default function PenjualanPage() {
     const handleStorageChange = () => loadData();
     window.addEventListener("storage", handleStorageChange);
 
-    // Supabase Realtime Subscription untuk riwayat penjualan
-    const channel = supabase
-      .channel("public:tw_sales_history_penjualan")
+    // Supabase Realtime Subscription untuk riwayat penjualan & piutang
+    const channelSales = supabase
+      .channel("public:tw_sales_history_penjualan_v2")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_sales_history" }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    const channelDebts = supabase
+      .channel("public:tw_debts_penjualan_sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadData();
       })
       .subscribe();
@@ -101,13 +124,14 @@ export default function PenjualanPage() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("storage", handleStorageChange);
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelSales);
+      supabase.removeChannel(channelDebts);
     };
   }, []);
 
-  // Hitung Rekapitulasi Berdasarkan paymentMethod
+  // Hitung Rekapitulasi Berdasarkan paymentMethod (Tunai, Transfer, dan yang sudah Terbayar masuk kas masuk)
   const totalCashSales = sales
-    .filter((s) => s.paymentMethod === "tunai" || s.paymentMethod === "transfer")
+    .filter((s) => s.paymentMethod === "tunai" || s.paymentMethod === "transfer" || s.paymentMethod === "terbayar")
     .reduce((sum, s) => sum + (s.total || 0), 0);
 
   const totalBonSales = sales
@@ -117,16 +141,17 @@ export default function PenjualanPage() {
   // Fungsi Share Struk ke WhatsApp
   const handleShareWhatsApp = (sale: any) => {
     const isBon = sale.paymentMethod === "bon";
+    const isTerbayar = sale.paymentMethod === "terbayar";
     let text = `*STRUK PENJUALAN - ${storeInfo.name.toUpperCase()}*\n`;
     text += `----------------------------------------\n`;
     text += `No. Invoice : ${sale.id}\n`;
     text += `Tanggal     : ${new Date(sale.date).toLocaleString("id-ID")}\n`;
-    text += `Status Nota : ${isBon ? "BON / PIUTANG PELANGGAN" : "LUNAS (TUNAI/TRANSFER)"}\n`;
+    text += `Status Nota : ${isBon ? "BON / PIUTANG PELANGGAN" : isTerbayar ? "LUNAS (TERBAYAR)" : "LUNAS (TUNAI/TRANSFER)"}\n`;
     if (sale.customerName) {
       text += `Pelanggan   : ${sale.customerName}\n`;
     }
     text += `----------------------------------------\n`;
-    text += `*RILIS ITEM BELANja:*\n`;
+    text += `*RILIS ITEM BELANJA:*\n`;
     
     sale.items?.forEach((it: any) => {
       text += `• ${it.name} (${it.qty}x @Rp ${(it.sellPrice || 0).toLocaleString("id-ID")}) = Rp ${(it.qty * it.sellPrice).toLocaleString("id-ID")}\n`;
@@ -135,8 +160,8 @@ export default function PenjualanPage() {
     text += `----------------------------------------\n`;
     text += `*TOTAL TAGIHAN : Rp ${(sale.total || 0).toLocaleString("id-ID")}*\n`;
     if (!isBon) {
-      text += `Pembayaran  : Rp ${(sale.pay || 0).toLocaleString("id-ID")}\n`;
-      text += `Kembalian   : Rp ${(sale.change || 0).toLocaleString("id-ID")}\n`;
+      text += `Pembayaran  : Rp ${(sale.pay || (isTerbayar ? sale.total : 0)).toLocaleString("id-ID")}\n`;
+      text += `Keterangan  : Lunas / Terbayar\n`;
     } else {
       text += `Keterangan  : Masuk Catatan Piutang Toko\n`;
     }
@@ -166,15 +191,15 @@ export default function PenjualanPage() {
         {/* KARTU REKAPITULASI TUNAI VS BON */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #10b981" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Tunai / Transfer</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Tunai / Lunas</span>
             <strong style={{ fontSize: "1.4rem", color: "#10b981" }}>Rp {totalCashSales.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Masuk langsung ke kas kasir</span>
+            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Termasuk kas masuk &amp; bon terbayar</span>
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #ef4444" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Bon / Piutang</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--tw-muted)" }}>Total Penjualan Bon / Piutang Aktif</span>
             <strong style={{ fontSize: "1.4rem", color: "#ef4444" }}>Rp {totalBonSales.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Masuk ke catatan piutang pelanggan</span>
+            <span style={{ fontSize: "0.7rem", color: "var(--tw-muted)" }}>Belum dilunasi pelanggan</span>
           </div>
 
           <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "6px", borderLeft: "4px solid #f59e0b" }}>
@@ -211,6 +236,7 @@ export default function PenjualanPage() {
                 ) : (
                   sales.map((sale, idx) => {
                     const isBon = sale.paymentMethod === "bon";
+                    const isTerbayar = sale.paymentMethod === "terbayar";
                     const isTransfer = sale.paymentMethod === "transfer";
                     
                     return (
@@ -237,12 +263,12 @@ export default function PenjualanPage() {
                             borderRadius: "6px", 
                             fontSize: "0.75rem", 
                             fontWeight: "900",
-                            background: isBon ? "rgba(239, 68, 68, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
-                            color: isBon ? "#ef4444" : isTransfer ? "#38bdf8" : "#10b981",
-                            border: isBon ? "1px solid rgba(239, 68, 68, 0.4)" : isTransfer ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)",
+                            background: isBon ? "rgba(239, 68, 68, 0.2)" : isTerbayar ? "rgba(16, 185, 129, 0.2)" : isTransfer ? "rgba(56, 189, 248, 0.2)" : "rgba(16, 185, 129, 0.2)", 
+                            color: isBon ? "#ef4444" : isTerbayar ? "#10b981" : isTransfer ? "#38bdf8" : "#10b981",
+                            border: isBon ? "1px solid rgba(239, 68, 68, 0.4)" : isTerbayar ? "1px solid rgba(16, 185, 129, 0.4)" : isTransfer ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)",
                             display: "inline-block"
                           }}>
-                            {isBon ? "🔴 NOTA: BON / PIUTANG" : isTransfer ? "🔵 NOTA: TRANSFER" : "🟢 NOTA: TUNAI"}
+                            {isBon ? "🔴 NOTA: BON / PIUTANG" : isTerbayar ? "🟢 NOTA: TERBAYAR (LUNAS)" : isTransfer ? "🔵 NOTA: TRANSFER" : "🟢 NOTA: TUNAI"}
                           </span>
                           {sale.customerName && (
                             <div style={{ fontSize: "0.75rem", color: "#38bdf8", marginTop: "6px", fontWeight: "bold" }}>
@@ -258,7 +284,7 @@ export default function PenjualanPage() {
                             </div>
                           ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                              <span style={{ color: "var(--tw-muted)" }}>Bayar: Rp {(sale.pay || 0).toLocaleString("id-ID")}</span>
+                              <span style={{ color: "var(--tw-muted)" }}>Bayar: Rp {(sale.pay || (isTerbayar ? sale.total : 0)).toLocaleString("id-ID")}</span>
                               <span style={{ color: "#10b981" }}>Kembali: Rp {(sale.change || 0).toLocaleString("id-ID")}</span>
                               <strong style={{ color: "#f59e0b" }}>Total: Rp {(sale.total || 0).toLocaleString("id-ID")}</strong>
                             </div>
@@ -322,7 +348,7 @@ export default function PenjualanPage() {
                   background: selectedSale.paymentMethod === "bon" ? "#fee2e2" : "#d1fae5", 
                   color: selectedSale.paymentMethod === "bon" ? "#dc2626" : "#059669" 
                 }}>
-                  {selectedSale.paymentMethod === "bon" ? "STATUS: BON / PIUTANG" : "STATUS: LUNAS"}
+                  {selectedSale.paymentMethod === "bon" ? "STATUS: BON / PIUTANG" : "STATUS: LUNAS / TERBAYAR"}
                 </span>
               </div>
               {selectedSale.customerName && (
@@ -356,7 +382,7 @@ export default function PenjualanPage() {
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", color: "#475569", fontWeight: "700", fontSize: "0.8rem" }}>
                     <span>Bayar:</span>
-                    <span>Rp {(selectedSale.pay || 0).toLocaleString("id-ID")}</span>
+                    <span>Rp {(selectedSale.pay || selectedSale.total || 0).toLocaleString("id-ID")}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", color: "#059669", fontWeight: "900", fontSize: "0.8rem" }}>
                     <span>Kembalian:</span>
