@@ -89,7 +89,7 @@ export default function PiutangPage() {
     window.addEventListener("storage", handleStorageChange);
 
     const channel = supabase
-      .channel("public:tw_debts_autosync_v14")
+      .channel("public:tw_debts_autosync_v15")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -323,4 +323,37 @@ export default function PiutangPage() {
                         <td style={{ padding: "10px" }}>
                           <div style={{ fontSize: "0.75rem", color: "#fff" }}>{dueDate.toLocaleDateString("id-ID")}</div>
                           {!isPaidOff && (
-                            <span style={{ fontSize
+                            <span style={{ fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px", background: isOverdue ? "rgba(239, 68, 68, 0.2)" : isDueSoon ? "rgba(245, 158, 11, 0.2)" : "rgba(56, 189, 248, 0.1)", color: isOverdue ? "#ef4444" : isDueSoon ? "#f59e0b" : "#38bdf8" }}>
+                              {isOverdue ? `Terlambat ${Math.abs(diffDays)} hari` : `${diffDays} hari lagi`}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "10px" }}>
+                          <span style={{ padding: "3px 8px", background: isPaidOff ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: isPaidOff ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
+                            {isPaidOff ? "Terbayar" : "Belum Lunas"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px", textAlign: "center" }}>
+                          {!isPaidOff && (
+                            <button
+                              type="button"
+                              onClick={() => setPayModalData(item)}
+                              style={{ padding: "4px 10px", background: "#10b981", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold" }}
+                            >
+                              Lunasi
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
