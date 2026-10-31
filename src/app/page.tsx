@@ -189,38 +189,38 @@ export default function DashboardPage() {
       <header className="tw-topbar" style={{ background: "transparent", borderBottom: "none", padding: "16px 24px 0 24px" }}>
         <div className="tw-header-card" style={{ width: "100%", backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "12px 20px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div className="tw-breadcrumb">
-            <strong style={{ color: "#0F172A", fontSize: "0.95rem", fontWeight: "600" }}>DASHBOARD INTERAKTIF</strong>
+            <strong style={{ color: "#0F172A", fontSize: "0.95rem", fontWeight: "700" }}>DASHBOARD INTERAKTIF</strong>
           </div>
         </div>
       </header>
 
       <div className="tw-content" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
         
-        {/* KARTU STATISTIK UTAMA */}
+        {/* KARTU STATISTIK UTAMA (DISELARASKAN DENGAN GAYA POS KASIR) */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           
           <div style={{ backgroundColor: "#0D9488", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
-            <span style={{ fontSize: "0.78rem", fontWeight: "500", opacity: 0.9, textTransform: "uppercase" }}>Total Omset Penjualan</span>
-            <strong style={{ fontSize: "1.35rem", fontWeight: "600" }}>Rp {stats.totalRevenue.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.75rem", fontWeight: "400", opacity: 0.85 }}>Dari {stats.totalSales} nota transaksi</span>
+            <span style={{ fontSize: "0.78rem", fontWeight: "600", opacity: 0.95, textTransform: "uppercase" }}>Total Omset Penjualan</span>
+            <strong style={{ fontSize: "1.35rem", fontWeight: "700" }}>Rp {stats.totalRevenue.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", fontWeight: "500", opacity: 0.9 }}>Dari {stats.totalSales} nota transaksi</span>
           </div>
 
           <div style={{ backgroundColor: "#0284C7", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
-            <span style={{ fontSize: "0.78rem", fontWeight: "500", opacity: 0.9, textTransform: "uppercase" }}>Estimasi Keuntungan (Profit)</span>
-            <strong style={{ fontSize: "1.35rem", fontWeight: "600" }}>Rp {stats.totalProfit.toLocaleString("id-ID")}</strong>
-            <span style={{ fontSize: "0.75rem", fontWeight: "400", opacity: 0.85 }}>Akumulasi margin jual - modal</span>
+            <span style={{ fontSize: "0.78rem", fontWeight: "600", opacity: 0.95, textTransform: "uppercase" }}>Estimasi Keuntungan (Profit)</span>
+            <strong style={{ fontSize: "1.35rem", fontWeight: "700" }}>Rp {stats.totalProfit.toLocaleString("id-ID")}</strong>
+            <span style={{ fontSize: "0.75rem", fontWeight: "500", opacity: 0.9 }}>Akumulasi margin jual - modal</span>
           </div>
 
           <div style={{ backgroundColor: "#D97706", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
-            <span style={{ fontSize: "0.78rem", fontWeight: "500", opacity: 0.9, textTransform: "uppercase" }}>Total Piutang / Bon Aktif</span>
-            <strong style={{ fontSize: "1.35rem", fontWeight: "600" }}>Rp {stats.totalDebts.toLocaleString("id-ID")}</strong>
-            <Link href="/piutang" style={{ fontSize: "0.75rem", color: "#FEF3C7", textDecoration: "underline", fontWeight: "500" }}>Kelola &amp; Lunasi Bon →</Link>
+            <span style={{ fontSize: "0.78rem", fontWeight: "600", opacity: 0.95, textTransform: "uppercase" }}>Total Piutang / Bon Aktif</span>
+            <strong style={{ fontSize: "1.35rem", fontWeight: "700" }}>Rp {stats.totalDebts.toLocaleString("id-ID")}</strong>
+            <Link href="/piutang" style={{ fontSize: "0.75rem", color: "#FEF3C7", textDecoration: "underline", fontWeight: "600" }}>Kelola &amp; Lunasi Bon →</Link>
           </div>
 
           <div style={{ backgroundColor: "#7C3AED", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.05)", color: "#FFFFFF" }}>
-            <span style={{ fontSize: "0.78rem", fontWeight: "500", opacity: 0.9, textTransform: "uppercase" }}>Total Katalog Produk</span>
-            <strong style={{ fontSize: "1.35rem", fontWeight: "600" }}>{stats.totalProducts} Item</strong>
-            <span style={{ fontSize: "0.75rem", fontWeight: "400", opacity: 0.85 }}>{lowStockItems.length} item stok menipis</span>
+            <span style={{ fontSize: "0.78rem", fontWeight: "600", opacity: 0.95, textTransform: "uppercase" }}>Total Katalog Produk</span>
+            <strong style={{ fontSize: "1.35rem", fontWeight: "700" }}>{stats.totalProducts} Item</strong>
+            <span style={{ fontSize: "0.75rem", fontWeight: "500", opacity: 0.9 }}>{lowStockItems.length} item stok menipis</span>
           </div>
 
         </div>
