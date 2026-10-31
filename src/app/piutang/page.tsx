@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function PiutangPage() {
   const [debts, setDebts] = useState<any[]>([]);
-  const [payModalData, setPayModalData] = useState<any>(null); // Data piutang yang akan dilunasi
+  const [payModalData, setPayModalData] = useState<any>(null);
   const [payAmount, setPayAmount] = useState<number | "">("");
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
@@ -14,20 +14,18 @@ export default function PiutangPage() {
     try {
       let fetchedDebts: any[] = [];
 
-      // 1. Ambil data dari tabel tw_debts Supabase
       const { data: debtData, error: debtError } = await supabase
         .from("tw_debts")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (!error && debtData) {
+      if (!debtError && debtData) {
         fetchedDebts = debtData;
       } else {
         const savedDebts = localStorage.getItem("kasirq_piutang");
         fetchedDebts = savedDebts ? JSON.parse(savedDebts) : [];
       }
 
-      // 2. AUTO-SYNC: Pindai tw_sales_history untuk memastikan semua transaksi Bon tercatat di piutang
       const { data: salesData } = await supabase.from("tw_sales_history").select("*");
       if (salesData) {
         const bonSales = salesData.filter((s: any) => {
@@ -36,19 +34,18 @@ export default function PiutangPage() {
         });
 
         for (const sale of bonSales) {
-          const exists = fetchedDebts.some((d: any) => d.trxId === sale.id || d.id === sale.id);
+          const exists = fetchedDebts.some((d: any) => d.trxid === sale.id || d.trxId === sale.id || d.id === sale.id);
           if (!exists) {
             const newDebt = {
               id: "PIU-" + (sale.id ? sale.id.replace("TRX-", "") : Date.now()),
-              trxId: sale.id,
-              customerName: sale.customerName || "Pelanggan Bon",
+              trxid: sale.id,
+              customername: sale.customerName || sale.customername || "Pelanggan Bon",
               amount: sale.total || 0,
-              paidAmount: 0,
-              remainingAmount: sale.total || 0,
+              paidamount: 0,
+              remainingamount: sale.total || 0,
               date: sale.date || sale.created_at || new Date().toISOString(),
               status: "Belum Lunas",
             };
-            // Masukkan ke Supabase tw_debts secara otomatis
             await supabase.from("tw_debts").insert([newDebt]).catch(() => {});
             fetchedDebts.unshift(newDebt);
           }
@@ -84,9 +81,8 @@ export default function PiutangPage() {
     const handleStorageChange = () => loadDebts();
     window.addEventListener("storage", handleStorageChange);
 
-    // Supabase Realtime Subscription untuk sinkronisasi piutang
     const channel = supabase
-      .channel("public:tw_debts_autosync")
+      .channel("public:tw_debts_autosync_v2")
       .on("postgres_changes", { event: "*", schema: "public", table: "tw_debts" }, () => {
         loadDebts();
       })
@@ -100,10 +96,9 @@ export default function PiutangPage() {
     };
   }, []);
 
-  // Fungsi untuk menghitung sisa hari jatuh tempo (7 hari dari tanggal transaksi)
   const getDueDateStatus = (dateStr: string) => {
     const trxDate = new Date(dateStr);
-    const dueDate = new Date(trxDate.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 hari
+    const dueDate = new Date(trxDate.getTime() + 7 * 24 * 60 * 60 * 1000);
     const today = new Date();
     const diffTime = dueDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -118,21 +113,24 @@ export default function PiutangPage() {
     }
 
     const payNum = Number(payAmount);
-    if (payNum > payModalData.remainingAmount) {
+    const currentRemaining = Number(payModalData.remainingamount ?? payModalData.remainingAmount ?? payModalData.amount ?? 0);
+    const currentPaid = Number(payModalData.paidamount ?? payModalData.paidAmount ?? 0);
+    const totalAmount = Number(payModalData.amount ?? 0);
+
+    if (payNum > currentRemaining) {
       alert("Nominal pelunasan melebihi sisa piutang!");
       return;
     }
 
-    const newPaid = Number(payModalData.paidAmount || 0) + payNum;
-    const newRemaining = Number(payModalData.amount || 0) - newPaid;
+    const newPaid = currentPaid + payNum;
+    const newRemaining = totalAmount - newPaid;
     const newStatus = newRemaining <= 0 ? "Lunas" : "Belum Lunas";
 
-    // 1. Update status ke Supabase tabel tw_debts
     const { error: updateError } = await supabase
       .from("tw_debts")
       .update({
-        paidAmount: newPaid,
-        remainingAmount: newRemaining,
+        paidamount: newPaid,
+        remainingamount: newRemaining,
         status: newStatus,
       })
       .eq("id", payModalData.id);
@@ -142,25 +140,26 @@ export default function PiutangPage() {
       return;
     }
 
-    // 2. Catat pemasukan pelunasan otomatis ke Supabase tabel tw_finances (untuk modul Keuangan)
+    const custName = payModalData.customername || payModalData.customerName || "Pelanggan";
+    const tId = payModalData.trxid || payModalData.trxId || payModalData.id;
+
     const financeRecord = {
       id: "INC-" + Date.now(),
       date: new Date().toISOString(),
       type: "Masuk",
       category: "Pelunasan Piutang / Bon",
-      description: `Pelunasan bon dari ${payModalData.customerName} (Trx: ${payModalData.trxId})`,
+      description: `Pelunasan bon dari ${custName} (Trx: ${tId})`,
       amount: payNum,
     };
 
     await supabase.from("tw_finances").insert([financeRecord]).catch(() => {});
 
-    // 3. Perbarui state lokal & localStorage piutang
     const updatedDebts = debts.map((item) => {
       if (item.id === payModalData.id) {
         return {
           ...item,
-          paidAmount: newPaid,
-          remainingAmount: newRemaining,
+          paidamount: newPaid,
+          remainingamount: newRemaining,
           status: newStatus,
         };
       }
@@ -170,7 +169,6 @@ export default function PiutangPage() {
     setDebts(updatedDebts);
     localStorage.setItem("kasirq_piutang", JSON.stringify(updatedDebts));
 
-    // 4. Sinkronisasi pencatatan ke localStorage keuangan
     const savedFin = JSON.parse(localStorage.getItem("tw_purchase_history") || "[]");
     localStorage.setItem("tw_purchase_history", JSON.stringify([financeRecord, ...savedFin]));
 
@@ -204,15 +202,14 @@ export default function PiutangPage() {
           </div>
         )}
 
-        {/* MODAL / FORM PELUNASAN JIKA DIPILIH */}
         {payModalData && (
           <div className="tw-card" style={{ background: "rgba(56, 189, 248, 0.05)", border: "1px solid #38bdf8", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 className="tw-card-title" style={{ margin: 0, color: "#38bdf8" }}>Form Pelunasan Bon: {payModalData.customerName}</h3>
+              <h3 className="tw-card-title" style={{ margin: 0, color: "#38bdf8" }}>Form Pelunasan Bon: {payModalData.customername || payModalData.customerName}</h3>
               <button onClick={() => setPayModalData(null)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", fontSize: "1rem" }}>✕</button>
             </div>
             <div style={{ fontSize: "0.85rem", color: "var(--tw-muted)" }}>
-              Total Sisa Piutang: <strong style={{ color: "#ef4444" }}>Rp {payModalData.remainingAmount.toLocaleString("id-ID")}</strong>
+              Total Sisa Piutang: <strong style={{ color: "#ef4444" }}>Rp {Number(payModalData.remainingamount ?? payModalData.remainingAmount ?? payModalData.amount ?? 0).toLocaleString("id-ID")}</strong>
             </div>
             <form onSubmit={handlePelunasanSubmit} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
               <input
@@ -229,7 +226,6 @@ export default function PiutangPage() {
           </div>
         )}
 
-        {/* TABEL DAFTAR PIUTANG / BON */}
         <div className="tw-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <h3 className="tw-card-title" style={{ margin: 0 }}>Daftar Piutang Pelanggan ({debts.length})</h3>
 
@@ -256,20 +252,27 @@ export default function PiutangPage() {
                   </tr>
                 ) : (
                   debts.map((item, idx) => {
-                    const { dueDate, diffDays } = getDueDateStatus(item.date);
+                    const dateVal = item.date || item.created_at;
+                    const { dueDate, diffDays } = getDueDateStatus(dateVal);
                     const isOverdue = diffDays < 0 && item.status !== "Lunas";
                     const isDueSoon = diffDays >= 0 && diffDays <= 2 && item.status !== "Lunas";
+                    
+                    const tId = item.trxid || item.trxId || item.id;
+                    const cName = item.customername || item.customerName || "Pelanggan";
+                    const amt = Number(item.amount || 0);
+                    const paid = Number(item.paidamount ?? item.paidAmount ?? 0);
+                    const rem = Number(item.remainingamount ?? item.remainingAmount ?? amt);
 
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                         <td style={{ padding: "10px" }}>
-                          <strong style={{ color: "#38bdf8", display: "block" }}>{item.trxId}</strong>
-                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{item.date ? new Date(item.date).toLocaleString("id-ID") : "-"}</small>
+                          <strong style={{ color: "#38bdf8", display: "block" }}>{tId}</strong>
+                          <small style={{ color: "var(--tw-muted)", fontSize: "0.7rem" }}>{dateVal ? new Date(dateVal).toLocaleString("id-ID") : "-"}</small>
                         </td>
-                        <td style={{ padding: "10px", color: "#fff", fontWeight: "bold" }}>{item.customerName}</td>
-                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {(item.amount || 0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {(item.paidAmount || 0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding: "10px", color: "#ef4444", fontWeight: "bold" }}>Rp {(item.remainingAmount || 0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#fff", fontWeight: "bold" }}>{cName}</td>
+                        <td style={{ padding: "10px", color: "#f59e0b" }}>Rp {amt.toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#10b981" }}>Rp {paid.toLocaleString("id-ID")}</td>
+                        <td style={{ padding: "10px", color: "#ef4444", fontWeight: "bold" }}>Rp {rem.toLocaleString("id-ID")}</td>
                         <td style={{ padding: "10px" }}>
                           <div style={{ fontSize: "0.75rem", color: "#fff" }}>{dueDate.toLocaleDateString("id-ID")}</div>
                           {item.status !== "Lunas" && (
@@ -280,7 +283,7 @@ export default function PiutangPage() {
                         </td>
                         <td style={{ padding: "10px" }}>
                           <span style={{ padding: "3px 8px", background: item.status === "Lunas" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)", color: item.status === "Lunas" ? "#10b981" : "#ef4444", borderRadius: "6px", fontSize: "0.75rem" }}>
-                            {item.status}
+                            {item.status || "Belum Lunas"}
                           </span>
                         </td>
                         <td style={{ padding: "10px", textAlign: "center" }}>
