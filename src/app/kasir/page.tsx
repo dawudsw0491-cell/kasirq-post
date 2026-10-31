@@ -369,37 +369,41 @@ export default function KasirPage() {
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
-      <header className="tw-topbar">
-        <div className="tw-breadcrumb">
-          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>KASIR POS</span>
-        </div>
-        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button
-            type="button"
-            onClick={toggleKasirCamera}
-            style={{ background: isKasirScanning ? "#DC2626" : "#0284C7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
-          >
-            {isKasirScanning ? "Tutup Kamera Scan" : "📷 Scan Kamera POS"}
-          </button>
-          <span
-            className="tw-live-badge"
-            style={{
-              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
-              color: isOnline ? "#065F46" : "#991B1B",
-              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
-              fontSize: "0.75rem",
-              fontWeight: "600"
-            }}
-          >
+      
+      {/* TOPBAR DENGAN CARD HEADER SOLID ELEGAN */}
+      <header className="tw-topbar" style={{ background: "transparent", borderBottom: "none", padding: "16px 24px 0 24px" }}>
+        <div className="tw-header-card" style={{ width: "100%", backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "12px 20px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="tw-breadcrumb">
+            <strong style={{ color: "#0F172A", fontSize: "0.95rem", fontWeight: "700" }}>KASIR POS (POINT OF SALES)</strong>
+          </div>
+          <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              type="button"
+              onClick={toggleKasirCamera}
+              style={{ background: isKasirScanning ? "#DC2626" : "#0284C7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
+            >
+              {isKasirScanning ? "Tutup Kamera Scan" : "📷 Scan Kamera POS"}
+            </button>
             <span
-              className="tw-status-dot"
+              className="tw-live-badge"
               style={{
-                backgroundColor: isOnline ? "#059669" : "#DC2626",
-                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+                color: isOnline ? "#065F46" : "#991B1B",
+                borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+                fontSize: "0.75rem",
+                fontWeight: "600"
               }}
-            />
-            {isOnline ? "ONLINE (Terhubung)" : "OFFLINE"}
-          </span>
+            >
+              <span
+                className="tw-status-dot"
+                style={{
+                  backgroundColor: isOnline ? "#059669" : "#DC2626",
+                  boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                }}
+              />
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -415,7 +419,7 @@ export default function KasirPage() {
         {/* KOLOM KIRI: KATALOG PRODUK */}
         <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Katalog Produk &amp; Barang Curah</h3>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Katalog Product</h3>
           </div>
 
           {message && (
@@ -424,10 +428,9 @@ export default function KasirPage() {
             </div>
           )}
 
-          {/* Kotak Remark / Informasi Scanner */}
           <div style={{ padding: "12px 14px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: "8px" }}>
             <span style={{ fontSize: "0.8rem", color: "#1E3A8A", fontWeight: "500", display: "block", lineHeight: "1.4" }}>
-              💡 Gunakan Alat Scanner USB/OTG, Scan Kamera POS, atau Klik produk di bawah untuk mengatur takaran &amp; tingkat harga.
+              💡 Gunakan Alat Scanner, Scan Kamera POS, atau Klik produk di bawah untuk mengatur takaran &amp; tingkat harga.
             </span>
           </div>
 
@@ -587,7 +590,7 @@ export default function KasirPage() {
                 boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
               }}
             >
-              Bayar &amp; Catat Transaksi
+              P E M B A Y A R A N
             </button>
           </div>
         </div>

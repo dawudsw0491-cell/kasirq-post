@@ -149,7 +149,7 @@ export default function RootLayout({
                     </div>
                     <span className="tw-brand-copy">
                       <strong style={{ fontSize: "0.85rem" }}>{storeName}</strong>
-                      <small style={{ fontSize: "0.65rem" }}>RETAIL MANAGEMENT</small>
+                      <small style={{ fontSize: "0.65rem" }}>SISTEM KASIR PINTAR</small>
                     </span>
                   </Link>
 
@@ -215,8 +215,8 @@ export default function RootLayout({
                   }}
                 />
                 <div>
-                  <strong style={{ fontSize: "0.75rem" }}>Sistem {storeName}</strong>
-                  <small style={{ fontSize: "0.65rem" }}>{isOnline ? "Online (Terhubung)" : "Offline (Terputus)"}</small>
+                  <strong style={{ fontSize: "0.75rem" }}>{storeName}</strong>
+                  <small style={{ fontSize: "0.65rem" }}>{isOnline ? "(Online)" : "Offline (Terputus)"}</small>
                 </div>
               </div>
             </aside>
@@ -233,28 +233,35 @@ export default function RootLayout({
               transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
-            {/* Tombol Expand Global: Muncul otomatis di pojok kiri atas semua halaman saat sidebar ditutup */}
+            {/* Tombol Expand Global: Ukuran lebih susut ~20-25% (32px x 32px) dengan efek glassmorphism & ikon panah */}
             {isSidebarCollapsed && (
               <div style={{ padding: "12px 20px 0 20px", display: "flex", alignItems: "center" }}>
                 <button
                   onClick={() => toggleSidebar(false)}
-                  title="Buka Menu"
+                  title="Buka Menu Sidebar"
                   style={{
-                    backgroundColor: "#0284c7",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "6px",
-                    width: "32px",
-                    height: "32px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "8px",
+                    background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    color: "#38bdf8",
+                    border: "1px solid rgba(56, 189, 248, 0.4)",
                     cursor: "pointer",
-                    fontSize: "0.95rem",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                    boxShadow: "0 6px 16px rgba(0, 0, 0, 0.15)",
+                    transition: "all 0.2s ease-in-out",
+                    marginRight: "16px",
+                    flexShrink: 0,
                   }}
                 >
-                  ☰
+                  {/* Ikon Tanda Panah Kanan yang proporsional */}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
                 </button>
               </div>
             )}

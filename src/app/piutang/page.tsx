@@ -192,30 +192,33 @@ export default function PiutangPage() {
         </div>
       )}
 
-      <header className="tw-topbar">
-        <div className="tw-breadcrumb">
-          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>MANAJEMEN PIUTANG &amp; PELUNASAN</span>
-        </div>
-        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span
-            className="tw-live-badge"
-            style={{
-              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
-              color: isOnline ? "#065F46" : "#991B1B",
-              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
-              fontSize: "0.75rem",
-              fontWeight: "600"
-            }}
-          >
+      {/* TOPBAR DENGAN CARD HEADER SOLID ELEGAN */}
+      <header className="tw-topbar" style={{ background: "transparent", borderBottom: "none", padding: "16px 24px 0 24px" }}>
+        <div className="tw-header-card" style={{ width: "100%", backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "12px 20px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="tw-breadcrumb">
+            <strong style={{ color: "#0F172A", fontSize: "0.95rem", fontWeight: "700" }}>MANAJEMEN PIUTANG &amp; PELUNASAN</strong>
+          </div>
+          <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span
-              className="tw-status-dot"
+              className="tw-live-badge"
               style={{
-                backgroundColor: isOnline ? "#059669" : "#DC2626",
-                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+                color: isOnline ? "#065F46" : "#991B1B",
+                borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+                fontSize: "0.75rem",
+                fontWeight: "600"
               }}
-            />
-            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
-          </span>
+            >
+              <span
+                className="tw-status-dot"
+                style={{
+                  backgroundColor: isOnline ? "#059669" : "#DC2626",
+                  boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                }}
+              />
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -250,7 +253,7 @@ export default function PiutangPage() {
         )}
 
         <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
-          <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Piutang Pelanggan ({debts.length})</h3>
+          <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Piutang Pelanggan [{debts.length}]</h3>
 
           <div style={{ overflowX: "auto", maxHeight: "500px", overflowY: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>

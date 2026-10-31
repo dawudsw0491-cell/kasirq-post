@@ -244,30 +244,34 @@ export default function KodeBarangPage() {
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
-      <header className="tw-topbar">
-        <div className="tw-breadcrumb">
-          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>MASTER KODE BARANG</span>
-        </div>
-        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span
-            className="tw-live-badge"
-            style={{
-              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
-              color: isOnline ? "#065F46" : "#991B1B",
-              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
-              fontSize: "0.75rem",
-              fontWeight: "600"
-            }}
-          >
+      
+      {/* TOPBAR DENGAN CARD HEADER SOLID ELEGAN */}
+      <header className="tw-topbar" style={{ background: "transparent", borderBottom: "none", padding: "16px 24px 0 24px" }}>
+        <div className="tw-header-card" style={{ width: "100%", backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "12px 20px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="tw-breadcrumb">
+            <strong style={{ color: "#0F172A", fontSize: "0.95rem", fontWeight: "700" }}>MASTER KODE BARANG</strong>
+          </div>
+          <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span
-              className="tw-status-dot"
+              className="tw-live-badge"
               style={{
-                backgroundColor: isOnline ? "#059669" : "#DC2626",
-                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+                color: isOnline ? "#065F46" : "#991B1B",
+                borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+                fontSize: "0.75rem",
+                fontWeight: "600"
               }}
-            />
-            {isOnline ? "ONLINE (Terhubung)" : "OFFLINE"}
-          </span>
+            >
+              <span
+                className="tw-status-dot"
+                style={{
+                  backgroundColor: isOnline ? "#059669" : "#DC2626",
+                  boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                }}
+              />
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -341,12 +345,16 @@ export default function KodeBarangPage() {
                   style={{ width: "100%", padding: "8px 12px", background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "8px", color: "#0F172A", fontSize: "0.85rem", fontWeight: "500" }}
                 >
                   <option value="Sembako">Sembako</option>
-                  <option value="Kebutuhan Pokok">Kebutuhan Pokok</option>
-                  <option value="Makanan & Minuman">Makanan & Minuman</option>
+                  <option value="Obat - Obatan">Obat - Obatan</option>
+                  <option value="Minuman">Minuman</option>
+                  <option value="Isi Ulang / Refil">Isi Ulang / Refil</option>
+                  <option value="Snack">Snack</option>
                   <option value="Bumbu Dapur">Bumbu Dapur</option>
-                  <option value="Rokok & Tembakau">Rokok & Tembakau</option>
+                  <option value="Rokok">Rokok</option>
                   <option value="Perawatan Tubuh">Perawatan Tubuh</option>
                   <option value="Kebersihan Rumah Tangga">Kebersihan Rumah Tangga</option>
+                  <option value="Alat Mandi">Alat Mandi</option>
+                  <option value="Alat & Perkakas">Alat & Perkakas</option>
                   <option value="Lainnya">Lainnya</option>
                 </select>
               </div>
@@ -361,7 +369,12 @@ export default function KodeBarangPage() {
                   <option value="gram">Gram</option>
                   <option value="pcs">Pcs</option>
                   <option value="pack">Pack</option>
+                  <option value="slop">Slop</option>
                   <option value="liter">Liter</option>
+                  <option value="renceng">Renceng</option>
+                  <option value="krat">Krat</option>
+                  <option value="galon">Galon</option>
+                  <option value="Lusin">Lusin</option>
                   <option value="dus">Dus</option>
                 </select>
               </div>
@@ -415,7 +428,7 @@ export default function KodeBarangPage() {
             </div>
 
             <button type="submit" className="tw-btn tw-btn-primary" style={{ padding: "10px", fontWeight: "600", marginTop: "4px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.9rem" }}>
-              Simpan / Update Master SKU &amp; Stok
+              SIMPAN / UPDATE
             </button>
           </form>
         </div>
@@ -423,7 +436,7 @@ export default function KodeBarangPage() {
         {/* KARTU KANAN: DAFTAR MASTER SKU */}
         <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Master SKU ({filteredProducts.length})</h3>
+            <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Daftar Master SKU [{filteredProducts.length}]</h3>
             <input
               type="text"
               placeholder="Cari SKU / Nama Barang..."

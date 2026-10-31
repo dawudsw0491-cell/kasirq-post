@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --tw-bg: #F8FAFC;              /* Background utama putih lembut bersih */
+  --tw-bg: #F8FAFC;            /* Background utama putih lembut bersih */
   --tw-card-bg: #FFFFFF;         /* Card warna putih bersih */
   --tw-border: #E2E8F0;          /* Warna border halaman */
   --tw-text: #1E293B;            /* Warna teks utama gelap */
@@ -112,6 +112,28 @@ body {
   color: #0F172A !important;
   border: 1px solid rgba(15, 23, 42, 0.2);
   font-weight: 600;
+}
+
+/* Styling Tombol Expand Sidebar yang lebih elegan & berjarak aman dari running text */
+.tw-sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid #CBD5E1;
+  color: #0F172A;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  margin-right: 14px; /* Memberikan jarak aman agar tidak mepet dengan running text */
+  flex-shrink: 0;
+}
+
+.tw-sidebar-toggle-btn:hover {
+  background: rgba(15, 23, 42, 0.1);
+  border-color: #94A3B8;
 }
 
 .tw-sidebar-bottom {

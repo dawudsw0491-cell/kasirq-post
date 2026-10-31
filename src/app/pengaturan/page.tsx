@@ -336,31 +336,34 @@ export default function PengaturanPage() {
 
   return (
     <div className="tw-main" style={{ animation: "fadeIn 0.3s ease-in-out", width: "100%", boxSizing: "border-box" }}>
-      <header className="tw-topbar">
-        <div className="tw-breadcrumb">
-          <span style={{ fontSize: "0.95rem", fontWeight: "600", color: "#0F172A" }}>PENGATURAN APLIKASI &amp; IDENTITAS TOKO</span>
-        </div>
-        
-        <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span
-            className="tw-live-badge"
-            style={{
-              backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
-              color: isOnline ? "#065F46" : "#991B1B",
-              borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
-              fontSize: "0.75rem",
-              fontWeight: "600"
-            }}
-          >
+      
+      {/* TOPBAR DENGAN CARD HEADER SOLID ELEGAN */}
+      <header className="tw-topbar" style={{ background: "transparent", borderBottom: "none", padding: "16px 24px 0 24px" }}>
+        <div className="tw-header-card" style={{ width: "100%", backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "12px 20px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="tw-breadcrumb">
+            <strong style={{ color: "#0F172A", fontSize: "0.95rem", fontWeight: "700" }}>PENGATURAN APLIKASI &amp; IDENTITAS TOKO</strong>
+          </div>
+          <div className="tw-topbar-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span
-              className="tw-status-dot"
+              className="tw-live-badge"
               style={{
-                backgroundColor: isOnline ? "#059669" : "#DC2626",
-                boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                backgroundColor: isOnline ? "#D1FAE5" : "#FEE2E2",
+                color: isOnline ? "#065F46" : "#991B1B",
+                borderColor: isOnline ? "#A7F3D0" : "#FCA5A5",
+                fontSize: "0.75rem",
+                fontWeight: "600"
               }}
-            />
-            {isOnline ? "ONLINE (SUPABASE)" : "OFFLINE"}
-          </span>
+            >
+              <span
+                className="tw-status-dot"
+                style={{
+                  backgroundColor: isOnline ? "#059669" : "#DC2626",
+                  boxShadow: isOnline ? "0 0 8px #059669" : "0 0 8px #DC2626",
+                }}
+              />
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -518,7 +521,7 @@ export default function PengaturanPage() {
                     key={item.key}
                     style={{
                       display: "flex",
-                      justify: "space-between",
+                      justifyContent: "space-between",
                       alignItems: "center",
                       padding: "12px",
                       background: "#F8FAFC",
@@ -564,7 +567,7 @@ export default function PengaturanPage() {
           <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
             <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#0F172A", fontWeight: "600", marginBottom: "6px" }}>Backup All Data &amp; Export Excel</h3>
             <p style={{ fontSize: "0.8rem", color: "#64748B", fontWeight: "500", marginBottom: "16px" }}>
-              Unduh database toko Anda dalam berkas spreadsheet multi-sheet terinterkoneksi formula.
+              Unduh database toko Anda dalam berkas spreadsheet multi-sheet.
             </p>
             <button
               onClick={handleExportExcel}
@@ -585,7 +588,7 @@ export default function PengaturanPage() {
                 boxShadow: "0 4px 12px rgba(5, 150, 105, 0.2)",
               }}
             >
-              <span>📊</span> Download Full Database Backup (.xlsx)
+              <span>📊</span>Backup Database (.xlsx)
             </button>
           </div>
 
@@ -595,7 +598,8 @@ export default function PengaturanPage() {
               <h3 className="tw-card-title" style={{ fontSize: "1rem", color: "#991B1B", fontWeight: "600", margin: 0 }}>Full Reset (Mulai dari 0)</h3>
             </div>
             <p style={{ fontSize: "0.8rem", color: "#7F1D1D", fontWeight: "500", marginBottom: "16px" }}>
-              Hapus seluruh data omset, transaksi, keuangan, piutang, hutang, stok barang di Supabase Cloud &amp; Local Storage untuk memulai dari awal.
+              Hapus seluruh pengelolaan dan penyimpanan, 
+              *Dianjurkan untuk melakukan Backup Database
             </p>
             <button
               onClick={handleFullReset}
@@ -617,7 +621,7 @@ export default function PengaturanPage() {
                 boxShadow: "0 4px 12px rgba(220, 38, 38, 0.2)",
               }}
             >
-              <span>🔄</span> {loadingReset ? "Mereset Cloud & Local..." : "Full Reset Semua Data Cloud & Local"}
+              <span>🔄</span> {loadingReset ? "Mereset Cloud & Local..." : "Reset Semua Data"}
             </button>
           </div>
 
