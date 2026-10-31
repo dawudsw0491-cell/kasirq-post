@@ -293,8 +293,6 @@ export default function KasirPage() {
       total: totalCart,
       total_amount: totalCart, // Diselaraskan agar Dashboard / Keuangan membaca omset
       totalAmount: totalCart,  // Kompatibilitas cadangan
-      paymentMethod,
-      customerName: paymentMethod === "piutang" ? customerName.trim() : "Umum",
       pay: paymentMethod === "cash" ? payAmount : totalCart,
       change: paymentMethod === "cash" ? changeAmount : 0,
       status: paymentMethod === "piutang" ? "Unpaid (Piutang)" : "Paid",
