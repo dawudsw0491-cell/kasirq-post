@@ -14,6 +14,9 @@ export default function KasirPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [message, setMessage] = useState("");
 
+  // STATE BARU UNTUK PENCARIAN
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [modalPriceType, setModalPriceType] = useState<"retail" | "wholesale">("retail");
@@ -256,6 +259,12 @@ export default function KasirPage() {
     );
   };
 
+  // FILTER PRODUK BERDASARKAN PENCARIAN SKU / NAMA
+  const filteredProducts = products.filter((p) =>
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.skuCode?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const totalCart = cart.reduce((sum, item) => sum + (item.sellPrice || 0) * item.qty, 0);
   const changeAmount = paymentMethod === "cash" && typeof payAmount === "number" && payAmount >= totalCart ? payAmount - totalCart : 0;
 
@@ -403,6 +412,7 @@ export default function KasirPage() {
               />
               {isOnline ? "ONLINE" : "OFFLINE"}
             </span>
+
           </div>
         </div>
       </header>
@@ -416,10 +426,31 @@ export default function KasirPage() {
 
       <div className="tw-content" style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px", padding: "24px" }}>
         
-        {/* KOLOM KIRI: KATALOG PRODUK */}
+        {/* KOLOM KIRI: KATALOG PRODUK & KOLOM PENCARIAN */}
         <div className="tw-card" style={{ backgroundColor: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
             <h3 className="tw-card-title" style={{ margin: 0, color: "#0F172A", fontSize: "1rem", fontWeight: "600" }}>Katalog Product</h3>
+          </div>
+
+          {/* INPUT KOLOM PENCARIAN BERDASARKAN SKU / NAMA */}
+          <div>
+            <input
+              type="text"
+              placeholder="🔍 Cari berdasarkan Nama Produk atau Kode SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                backgroundColor: "#F8FAFC",
+                border: "1px solid #CBD5E1",
+                borderRadius: "8px",
+                fontSize: "0.85rem",
+                color: "#0F172A",
+                outline: "none",
+                boxSizing: "border-box"
+              }}
+            />
           </div>
 
           {message && (
@@ -430,17 +461,17 @@ export default function KasirPage() {
 
           <div style={{ padding: "12px 14px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: "8px" }}>
             <span style={{ fontSize: "0.8rem", color: "#1E3A8A", fontWeight: "500", display: "block", lineHeight: "1.4" }}>
-              💡 Gunakan Alat Scanner, Scan Kamera POS, atau Klik produk di bawah untuk mengatur takaran &amp; tingkat harga.
+              💡 Gunakan Alat Scanner, Scan Kamera POS, ketik di kolom pencarian, atau klik produk di bawah untuk mengatur takaran &amp; tingkat harga.
             </span>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px", maxHeight: "380px", overflowY: "auto" }}>
-            {products.length === 0 ? (
+            {filteredProducts.length === 0 ? (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "30px", color: "#64748B", fontSize: "0.85rem", fontWeight: "500" }}>
-                Belum ada produk aktif tersedia.
+                Produk atau SKU tidak ditemukan.
               </div>
             ) : (
-              products.map((p, idx) => (
+              filteredProducts.map((p, idx) => (
                 <div
                   key={idx}
                   onClick={() => handleOpenModal(p)}

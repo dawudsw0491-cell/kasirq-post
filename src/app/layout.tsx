@@ -92,6 +92,10 @@ export default function RootLayout({
 
   return (
     <html lang="id">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#060911" />
+      </head>
       <body>
         <div className="tw-dashboard" style={{ display: "flex", position: "relative", minHeight: "100vh", overflowX: "hidden" }}>
           
@@ -233,7 +237,7 @@ export default function RootLayout({
               transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
-            {/* Tombol Expand Global: Ukuran lebih susut ~20-25% (32px x 32px) dengan efek glassmorphism & ikon panah */}
+            {/* Tombol Expand Global */}
             {isSidebarCollapsed && (
               <div style={{ padding: "12px 20px 0 20px", display: "flex", alignItems: "center" }}>
                 <button
@@ -258,7 +262,6 @@ export default function RootLayout({
                     flexShrink: 0,
                   }}
                 >
-                  {/* Ikon Tanda Panah Kanan yang proporsional */}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"></polyline>
                   </svg>
